@@ -1,68 +1,6 @@
 hello git
 sss
 
-Big Data Summary:
-
-Review summary:
-
-
-1.	SparkSession.createDataFrame, which is used under the hood, requires an RDD / list of Row/tuple/list/dict* or pandas.DataFrame, unless schema with DataType is provided. Try something like this: (item, )
-2.	Python ascii Unicode， 
-Str = u’abcd {unicodestr}’
-Str.Encode(‘ascii’,’ignore’) => ‘abcd’
-Str.Encode(‘ascii’, ‘replace’) => ‘abcd ???’
-3.	Pyhon open file , file path
-result_code=open('D:/code/pytest/config/result_code.txt',"r").readlines()
-4.	Pyspark , merge two list, x = (a, list1), y = (a, list2) 
-reduceByKey(lambda a,b: a+b)
-5.	Pyspark, Cartesian,  compare each value in RDD, rdda = rdd, rddb = rdd, rdda.cartesian(rddb)
-6.	Python, Compare tow list
-any(map(lambda v: v in list2, list1))
-7.	Remove hdfs file
-val hadoopConf = new org.apache.hadoop.conf.Configuration()
-val hdfs = org.apache.hadoop.fs.FileSystem.get(new java.net.URI("hdfs://localhost:9000"), hadoopConf)
-try { hdfs.delete(new org.apache.hadoop.fs.Path(filepath), true) } catch { case _ : Throwable => { } }
-8.	--conf spark.hadoop.validateOutputSpecs=false, saveAsTextFile() will overwrite the target path
-9.	Spark questions https://www.edureka.co/blog/interview-questions/top-apache-spark-interview-questions-2016/
-10.	Spark executor memory setting
-https://community.hortonworks.com/questions/65934/spark-executor-memory.html
-nail down the number of executor cores first. By rule of thumb, --executor-cores = 3~5
-11.	DW evolution http://blog.csdn.net/odailidong/article/details/49514265
-12.	Elastic search
-You can (very roughly) think of an index like a database.
-
-SQL Server => Databases => Tables => Columns/Rows
-Elasticsearch => Indices => Types => Documents with Properties
-
-An Elasticsearch cluster can contain multiple Indices (databases), which in turn contain multiple Types (tables). These types hold multiple Documents (rows), and each document has Properties or Fields (columns).
-13.	Elastic search
-es.resource
-Elasticsearch resource location, where data is read and written to. Requires the format <index>/<type>(relative to the Elasticsearch host/port (see below))).
-  es.resource = twitter/tweet   # index 'twitter', type 'tweet'
-14.	Livy server
-https://zh.hortonworks.com/blog/livy-a-rest-interface-for-apache-spark/ 
-https://github.com/hortonworks/livy-release/blob/HDP-2.6.0.3-8-tag/examples/src/main/python/pi_app.py 
-require at least spark 1.6
-15.	YARN Rest API
-https://docs.hortonworks.com/HDPDocuments/HDP2/HDP-2.6.1/bk_yarn-resource-management/content/ch_yarn_rest_apis.html
-16.	YARN create queue and allocate resource to queue, yarn-site.xml, capacity-scheduler.xml
-https://discuss.pivotal.io/hc/en-us/articles/201623853-How-to-configure-queues-using-YARN-capacity-scheduler-xml
-17.	YARN capacity scheduler , preemption
-https://community.hortonworks.com/questions/62868/spark-executors-relationship-to-yarn-containersque.html
-https://hortonworks.com/blog/better-slas-via-resource-preemption-in-yarns-capacityscheduler/ 
-18.	YARN Slider
-19.	YARN resource allocation, capacity scheduler, cgroup, cpu scheduling (Dominant resource calcaulator), node label, 
-https://docs.hortonworks.com/HDPDocuments/HDP2/HDP-2.6.4/bk_yarn-resource-management/content/ch_node_labels.html 
-20.	Resource management in Spark application, difference with Yarn resource management
-https://stackoverflow.com/questions/43239921/how-do-spark-scheduler-pools-work-when-running-on-yarn
-
-21.	Teradata data model
-https://wenku.baidu.com/view/b41c1715866fb84ae45c8d69.html
-22.	HDFS file storage format
-https://www.slideshare.net/StampedeCon/choosing-an-hdfs-data-storage-format-avro-vs-parquet-and-more-stampedecon-2015 
-avero can storage size and read/write performance is worse than parquet, orc, but it can schema evolution
-
-
 
 
 
