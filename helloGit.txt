@@ -61,13 +61,6 @@ https://wenku.baidu.com/view/b41c1715866fb84ae45c8d69.html
 22.	HDFS file storage format
 https://www.slideshare.net/StampedeCon/choosing-an-hdfs-data-storage-format-avro-vs-parquet-and-more-stampedecon-2015 
 avero can storage size and read/write performance is worse than parquet, orc, but it can schema evolution
-23.	Submit job to spark
-su omm
-cd /opt/huawei/cis/components/ficlient/Spark/spark/bin/
-source /opt/huawei/cis/components/ficlient/bigdata_env
-kinit cisadmin -k -t /opt/huawei/cis/etc/conf/Auth/user.keytab
-./spark-submit --jars /opt/huawei/cis/components/ficlient/Spark/spark/lib/streamingClient/spark-streaming-kafka_2.10-1.5.1.jar,/opt/huawei/cis/components/ficlient/Spark/spark/lib/streamingClient/kafka_2.10-0.8.2.1.jar,/opt/huawei/cis/components/ficlient/Spark/spark/lib/streamingClient/kafka-clients-0.8.2.1.jar --master yarn-cluster --num-executors 1 --driver-memory 4G --executor-memory 8G --executor-cores 4 --queue default --conf spark.default.parallelism=1000 --files /opt/huawei/cis/etc/conf/common.properties --py-files /opt/huawei/cis/components/platform/kafkasdk/run/kafka_python-0.9.4-py2.7.egg,/opt/huawei/cis/components/platform/kafkasdk/run/six.zip --conf spark.akka.frameSize=100 /opt/ciptagger/Tagger.py "TagNIP"
-
 
 
 
