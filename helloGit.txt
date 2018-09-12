@@ -1,1 +1,517 @@
-hello this is a test
+Review summary:
+
+1.	SparkSession.createDataFrame, which is used under the hood, requires an RDD / list of Row/tuple/list/dict* or pandas.DataFrame, unless schema with DataType is provided. Try something like this: (item, )
+2.	Python ascii Unicode， 
+Str = u’abcd {unicodestr}’
+Str.Encode(‘ascii’,’ignore’) => ‘abcd’
+Str.Encode(‘ascii’, ‘replace’) => ‘abcd ???’
+3.	Pyhon open file , file path
+result_code=open('D:/code/pytest/config/result_code.txt',"r").readlines()
+4.	Pyspark , merge two list, x = (a, list1), y = (a, list2) 
+reduceByKey(lambda a,b: a+b)
+5.	Pyspark, Cartesian,  compare each value in RDD, rdda = rdd, rddb = rdd, rdda.cartesian(rddb)
+6.	Python, Compare tow list
+any(map(lambda v: v in list2, list1))
+7.	Remove hdfs file
+val hadoopConf = new org.apache.hadoop.conf.Configuration()
+val hdfs = org.apache.hadoop.fs.FileSystem.get(new java.net.URI("hdfs://localhost:9000"), hadoopConf)
+try { hdfs.delete(new org.apache.hadoop.fs.Path(filepath), true) } catch { case _ : Throwable => { } }
+8.	--conf spark.hadoop.validateOutputSpecs=false, saveAsTextFile() will overwrite the target path
+9.	Spark questions https://www.edureka.co/blog/interview-questions/top-apache-spark-interview-questions-2016/
+10.	Spark executor memory setting
+https://community.hortonworks.com/questions/65934/spark-executor-memory.html
+nail down the number of executor cores first. By rule of thumb, --executor-cores = 3~5
+11.	Spark internal
+https://ihainan.gitbooks.io/spark-source-code/content/section3/index.html 
+https://spark-internals.books.yourtion.com/markdown/4-shuffleDetails.html 
+http://jerryshao.me/ 
+http://geek.csdn.net/news/detail/77491 
+http://www.cnblogs.com/jerrylead/archive/2011/06/20/2085491.html 
+	RDD
+•	X = rdda.transformation(rddb), x depends on rdda, rddb
+•	RDD partition number, max( RDD parent 1, …, RDD parent n), default to the configuration setting spark.default.parallelism, if the value is not set, the number of partitions depends on the cluster manager mode (yarn, mesos, standalone)
+•	RDD.checkpoint(), snapshot of RDD, all the reference to it’s parent RDDS will be removed
+Need set config setCheckpointDir, sparkContext.setCheckpointDir before using rdd.checkpoint(), usually  we use it this way, rdd.cache(), rdd.checkpoint(), rdd.collect()
+streamingcontext
+•	RDD.persist equas rdd.cache(), default storage level is memory_only, full storage level list: memory_only, memory_and_disk, memory_only_ser, memory_disk_ser, disk_only, memory_only2, memory_and_disk2
+	HA, use Zookeeper to avoid SPOF, api for zoopkeeper, curator
+https://blog.csdn.net/anzhsoft/article/details/33740737
+                     
+12.	Spark streaming
+http://spark.apache.org/docs/latest/streaming-kafka-0-10-integration.html 
+在Spark Streaming中消费Kafka数据，保证Exactly-once的核心有三点：
+使用Direct方式连接Kafka；自己保存和维护Offset；更新Offset和计算在同一事务中完成
+
+spark.streaming.kafka.maxRatePerPartition=20000（每秒钟从topic的每个partition最多消费的消息条数）
+http://lxw1234.com/archives/2018/02/901.htm
+13.	Fastutil
+http://fastutil.di.unimi.it/
+14.	Alluxio, formly Tachyon
+https://www.alluxio.org/
+15.	Standford university big data, distributed system paper
+https://cs.stanford.edu/~matei/courses/2015/6.S897/ 
+16.	DW evolution http://blog.csdn.net/odailidong/article/details/49514265
+17.	Elastic search
+You can (very roughly) think of an index like a database.
+SQL Server => Databases => Tables => Columns/Rows
+Elasticsearch => Indices => Types => Documents with Properties
+
+An Elasticsearch cluster can contain multiple Indices (databases), which in turn contain multiple Types (tables). These types hold multiple Documents (rows), and each document has Properties or Fields (columns).
+18.	Elastic search
+es.resource
+Elasticsearch resource location, where data is read and written to. Requires the format <index>/<type>(relative to the Elasticsearch host/port (see below))).
+  es.resource = twitter/tweet   # index 'twitter', type 'tweet'
+19.	Livy server
+https://zh.hortonworks.com/blog/livy-a-rest-interface-for-apache-spark/ 
+https://github.com/hortonworks/livy-release/blob/HDP-2.6.0.3-8-tag/examples/src/main/python/pi_app.py 
+require at least spark 1.6
+20.	YARN Rest API
+https://docs.hortonworks.com/HDPDocuments/HDP2/HDP-2.6.1/bk_yarn-resource-management/content/ch_yarn_rest_apis.html
+21.	YARN create queue and allocate resource to queue, yarn-site.xml, capacity-scheduler.xml
+https://discuss.pivotal.io/hc/en-us/articles/201623853-How-to-configure-queues-using-YARN-capacity-scheduler-xml
+22.	YARN capacity scheduler , preemption
+https://community.hortonworks.com/questions/62868/spark-executors-relationship-to-yarn-containersque.html
+https://hortonworks.com/blog/better-slas-via-resource-preemption-in-yarns-capacityscheduler/ 
+23.	YARN Slider
+24.	YARN resource allocation, capacity scheduler, cgroup, cpu scheduling (Dominant resource calcaulator), node label, 
+https://docs.hortonworks.com/HDPDocuments/HDP2/HDP-2.6.4/bk_yarn-resource-management/content/ch_node_labels.html 
+25.	Resource management in Spark application, difference with Yarn resource management
+https://stackoverflow.com/questions/43239921/how-do-spark-scheduler-pools-work-when-running-on-yarn
+
+26.	Teradata data model
+https://wenku.baidu.com/view/b41c1715866fb84ae45c8d69.html
+27.	Data warehouse
+https://www.jianshu.com/p/7414d3fd5227 
+http://lxw1234.com/archives/2015/08/473.htm 
+http://lxw1234.com/archives/2018/01/890.htm 
+https://yq.aliyun.com/articles/174269 
+28.	HDFS file storage format
+https://www.slideshare.net/StampedeCon/choosing-an-hdfs-data-storage-format-avro-vs-parquet-and-more-stampedecon-2015 
+avero can storage size and read/write performance is worse than parquet, orc, but it can schema evolution
+29.	Hadoop namenode HA
+https://www.ibm.com/developerworks/cn/opensource/os-cn-hadoop-name-node/index.html
+
+30.	Submit job to spark
+su omm
+cd /opt/huawei/cis/components/ficlient/Spark/spark/bin/
+source /opt/huawei/cis/components/ficlient/bigdata_env
+kinit cisadmin -k -t /opt/huawei/cis/etc/conf/Auth/user.keytab
+./spark-submit --jars /opt/huawei/cis/components/ficlient/Spark/spark/lib/streamingClient/spark-streaming-kafka_2.10-1.5.1.jar,/opt/huawei/cis/components/ficlient/Spark/spark/lib/streamingClient/kafka_2.10-0.8.2.1.jar,/opt/huawei/cis/components/ficlient/Spark/spark/lib/streamingClient/kafka-clients-0.8.2.1.jar --master yarn-cluster --num-executors 1 --driver-memory 4G --executor-memory 8G --executor-cores 4 --queue default --conf spark.default.parallelism=1000 --files /opt/huawei/cis/etc/conf/common.properties --py-files /opt/huawei/cis/components/platform/kafkasdk/run/kafka_python-0.9.4-py2.7.egg,/opt/huawei/cis/components/platform/kafkasdk/run/six.zip --conf spark.akka.frameSize=100 /opt/ciptagger/Tagger.py "TagNIP"
+31.	Kafka
+Install 
+http://www.cnblogs.com/xinlingyoulan/p/6054361.html 
+kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test
+
+
+http://www.infoq.com/cn/articles/kafka-analysis-part-1 
+https://www.cnblogs.com/mengyou0304/p/4836555.html
+
+
+http://www.jasongj.com/kafka/high_throughput/
+topic
+physically correspond to a directory on disk, which contains all the messages received and index file. Logfile in the directory include a sequence of log entries, each one contains 4 bytes
+
+topic –> partition -> segment -> data file and index file
+
+the number of partitions can be specified by the user, each partition is ordered, immutable sequence of records, each record is assigned with sequential id number called offset. Each record consist of a key, value, timestamp.
+Persistence:
+Kafka persist all the published records, whether or not they have been consumed, using a configurable retention period.
+
+Specify number of partitions:
+Conf/server.properties
+Num.partitions = 3
+Log retention:
+# The minimum age of a log file to be eligible for deletion
+log.retention.hours=168
+https://kafka.apache.org/documentation/#design 
+https://tech.meituan.com/kafka-fs-design-theory.html
+https://blog.csdn.net/lizhitao/article/details/25667831
+
+log compact setting will also make kafka delete data from time to time,
+topic 的cleanup.policy = deleted (default), compact
+
+reset offset manually
+https://community.hortonworks.com/articles/81357/manually-resetting-offset-for-a-kafka-topic.html 
+
+exactly once
+use transaction
+https://www.confluent.io/blog/transactions-apache-kafka/ 
+
+avoid data loss
+directed API, ensure no data loss, exactly-once, but need update zookeeper offset by yourself.
+https://blog.csdn.net/LW_GHY/article/details/52143659 
+https://blog.csdn.net/john2522/article/details/64555065 
+delete kafka message
+if you have a log compacted topic, you can issue a tombstone message
+(key with a null message) to delete it
+
+
+
+performance best practice
+https://community.hortonworks.com/articles/80813/kafka-best-practices-1.html 
+
+difference with traditional message queue
+https://www.confluent.io/blog/okay-store-data-apache-kafka/
+Configuring ZooKeeper for Use with Kafka
+Here are several recommendations for ZooKeeper configuration with Kafka:
+	Do not run ZooKeeper on a server where Kafka is running.
+	When using ZooKeeper with Kafka you should dedicate ZooKeeper to Kafka, and not use ZooKeeper for any other components.
+	Make sure you allocate sufficient JVM memory. A good starting point is 4GB.
+	To monitor the ZooKeeper instance, use JMX metrics.
+
+Avoid data loss
+http://aseigneurin.github.io/2016/05/07/spark-kafka-achieving-zero-data-loss.html 
+
+store offset to zookeeper:
+ZkUtils.updatePersistentPath(zkClient, zkPath, offsetsRangesStr)
+
+Talks
+https://www.confluent.io/resources/kafka-summit-2016/ 
+https://www.confluent.io/thank-you/advanced-streaming-analytics-apache-flink-apache-kafka/ 
+
+start kafka(use bat on windows, sh on linux instead)
+•	start zookeeper: 
+      zookeeper-server-start.bat ..\..\config\zookeeper.properties
+•	start kafka:
+      kafka-server-start.bat ..\..\config\server.properties
+•	create producer:
+       kafka-console-producer.bat --broker-list localhost:9092 --topic test
+•	create consumer:
+kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic test --from-beginning
+•	create topic:
+kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test
+
+                scale kafka:
+                one way:
+1.	add a broker node
+2.	generate topic json
+{ "version": 1,
+  "topics": [
+    {"topic": "test_topic"},
+    {"topic": "__consumer_offsets"}
+]
+}
+
+3.	generate reassignment json file
+bin/kafka-reassign-partitions.sh --zookeeper zkhost:2181 --generate --topics-to-move-json-file topics.json --broker-list 0,1,2,3
+
+4.	run kafka-reassignment 
+bin/kafka-reassign-partitions.sh --zookeeper zkhost:2181 --execute --reassignment-json-file reassignment.json
+                another way:
+                kafka manager
+
+                rebalance:
+                add consumers
+
+                 consumer offset 
+                 https://www.cnblogs.com/huxi2b/p/8316289.html  
+
+               high performance mechanism:
+•	NIO
+•	Zero copy
+•	Queue structure
+•	Sequential Disk read/write
+https://www.jianshu.com/p/d47de3d6d8ac 
+
+32.	Cassandra
+Gossip algorithm
+https://blog.csdn.net/chen77716/article/details/6275762 
+33.	JVM
+https://blog.csdn.net/chen77716/article/details/5695893 
+34.	RabbitMQ
+
+Persistency 
+Two components: queue index and message store
+
+
+
+Publish / Subscribe mode
+
+35.	Redis
+Persistency RDB, AOF
+
+36.	Zookeeper
+https://zookeeper.apache.org/doc/current/zookeeperOver.html
+https://zookeeper.apache.org/doc/r3.3.3/zookeeperAdmin.html#sc_dataFileManagement 
+
+if you want tolerate f machine failure, you have to have 2f+1 machines
+
+              privisioning
+              create myid file, which contains a integer falls in 1~255 representing the server number 
+              modify zoo.cfg, 
+                  specify dataDir which contains data, transaction log and snapshot
+                  add a new entry server.[myid] = host:port:port, like server.1 = testserver1:2400:2401
+                  minimize the configuration
+            
+            best practice
+1.	Having a dedicated log device has a large impact on throughput and stable latencies. It is highly recommened to dedicate a log device and set dataLogDir to point to a directory on that device, and then make sure to point dataDir to a directory not residing on that device
+   dataLogDir
+put the transaction log to dataLogDir              
+
+
+37.	Metadata
+https://yq.aliyun.com/articles/174269
+38.	Grafana vs superset
+https://github.com/grafana/grafana/issues
+39.	Hive perf 
+https://zh.hortonworks.com/blog/5-ways-make-hive-queries-run-faster/ 
+40.	HBase
+https://www.ibm.com/developerworks/cn/analytics/library/ba-cn-bigdata-hbase/index.html
+https://help.aliyun.com/document_detail/59035.html?spm=a2c4g.11186623.6.574.5RUcKZ
+https://www.tutorialspoint.com/hbase/index.htm 
+41.	Cassandra 
+https://www.ibm.com/developerworks/cn/opensource/ba-set-up-apache-cassandra-architecture/index.html 
+42.	micro service 
+	nginx https://www.nginx.com/blog/building-microservices-using-an-api-gateway/ 
+1.	why microservice 
+develop swift(fast), independent of other teams
+deploy independent of other service
+use resource efficiently, only apply resource to those services which really need resource
+2.	API gateway
+Issue with directly communicating with micro services:
+•	Retrieve data from multiple services. Not efficient when sending too many requests over internet, especially on a mobile device
+•	Services use protocols which are not web friendly, AMQP, thrift binary RPC, 
+•	Hard to refactor, if service split into multiple services, or merge
+
+       The API Gateway is responsible for request routing, composition, and protocol translation
+                                  
+                                  Implementation Details:
+•	Performance and scalability
+•	Reactive programing model
+a.	Future in Scala, 
+b.	CompletableFuture in Java 8,
+c.	Promise in JavaScript.
+•	Services communication
+a.	Async, messaging based
+b.	JMS, AMQP
+c.	Async http, thrift
+•	Service discovery
+The micro service location change constantly when upgrade and update
+Etcd 
+https://yeasy.gitbooks.io/docker_practice/content/etcd/intro.html 
+http://www.infoq.com/cn/articles/etcd-interpretation-application-scenario-implement-principle 
+https://yq.aliyun.com/articles/11035#3 
+•	Handle partial failure
+3.	Event driven architecture
+Micro service challenges:
+•	Distributed data management
+                                    2PC is not viable, NO SQL does not support transaction
+•	Retrieve data from multiple micro services
+No sql database only supports key-based retrieval, cannot get data by providing other info associated to primary key
+                          
+                          Event driven architecture
+                          Service exchanges event via message broker.
+                          Order service create an order and then publish event ordercreated to message broker, customer service subscribe to the ordercreated event, reserve credit for the event and publish creditreserved event to message broker.
+
+                          Order service, customer service, OrderCustomerViewUpdateService, ordercustomerView, OrderCustomerViewQueryService
+
+                         Event driven architecture challenges:
+•	Must implement compensating transaction to recover from application-level failures, for example, cancel order if the credit check fails
+•	 Deal with inconsistent data. For example, materialize view is not yet updated.
+•	Subscriber need to handle and ignore duplicate event
+                        Achieve atomicity:
+                        Publishing events using local transaction 
+                        Create data entity table and event table, and a separate continuously running thread to fetch event from event table and publish it to message broker.
+                        Order service inserts a row into data entity table and event table in a transaction, the separate thread checks the unpublished event and publish it to message broker and update the event in the table as published.
+                        Challenge : it’s hard to implement when using nosql database since no transaction is supported.
+
+                       Event sourcing
+                        Rather than store the current state of an entity, store the sequence of state-changing events. Whenever the state of an entity changes, a new event will be appended to the event list. Since saving an entity is single operation, It’s atomic.
+
+4.	Deployment 
+Multiple services per host
+Single service per host => single service per vm, single service per container
+5.	Refactoring monolithic application into micro services
+Instead of big bang rewrite, incrementally refactor your monolithic application. 
+Strategy 1: stop digging
+Components: 
+new service, monolithic application, 
+request router, 
+glue code, translate between new and old data models
+Strategy 2: split frontend and backend
+Strategy 3: extract service
+•	Choose the module easy to start, independent of other modules
+•	Module has significant different resource requirement than others, e.g. has in memory database, or computation-intensive, consider convert it into service
+How to extract
+Extract a module from monolithic application, define coarse-grained API 
+	Martin fowler
+
+                             Event architecture
+                             https://martinfowler.com/tags/event%20architectures.html
+
+               build web application with micro service
+               https://www.nginx.com/blog/building-a-web-frontend-with-microservices-and-nginx-plus/ 
+43.	DDD design
+•	Entity
+There is unique identifier, include state and behavior
+•	Value object
+Describe domain, but shared, no unique identifier, it’s always not changed during the lifetime.
+•	Domain service
+Sometimes domain cannot be described by entity or value object, they are operation only, no state, may involve multiple entities
+Eric Evans 
+Domain driven design
+
+44.	Remote procedure call – circuit breaker 
+https://martinfowler.com/bliki/CircuitBreaker.html
+45.	Build Micro service – nginx
+Interfacing with customers (integration between services)
+•	Database, share data but not share behavior
+•	Request/response, support sync/async
+•	Event based, support async in nature
+Two approaches
+•	Orchestration (central brain, service will invoke related service API through a series of request/response calls) 
+Downside: become central governor authority, a central point where logic starts to live
+•	choreographed (event based)
+              RPC(RMI, SOAP, Thrift, Protocol buffer)
+              Downside: technology coupled, RMI, both client and server on JVM.
+              
+46.	Druid
+•	Support limited sql syntax
+•	Not support join
+•	OLAP query on data
+Segment, shard data
+47.	Impala, MPP(massively parallel processing database )
+•	Daemon
+The core impala component is a daemon process that runs on each data node of the Cluster, physically represented by the impalad process.
+if a query is submitted to a daemon, the instance of the daemon server serve as coordinator for that query, the other nodes transmit the partial result back to the coordinator, which constructs the final result set for a query.
+•	StateStore
+The statestore checks on the health of Impala daemons on all the DataNodes in a cluster, and continuously relay its findings to each of those daemons. It’s physically represented by a daemon process statestored. You only need such a process on one host in the cluster.
+•	CatalogService
+The catalog service relay the metadata changes from impala SQL statements to all the Imapla daemons in a cluster. It’s physically represented by a daemon process named catalogd. You only need such a process on one host in a cluster
+
+48.	Spark 2.0 tuning
+https://www.slideshare.net/jcmia1/apache-spark-20-tuning-guide 
+49.	Good comments on better performance with putting data into memory
+
+I think it is a bit of a misnomer that Spark performs best (or any system) when the base data set fits into memory — it really depends. Certainly having memory resident table data can speed up operations, specifically when I/O time dominates the execution time, however, in many scenarios (including TPC-DS queries) I/O time is not where most of the time get spent. Additionally, it is rarely practical to have all base data cached into memory, especially for big data systems.
+I’d like to highlight an important difference you brought up between “can run all 99 queries” and “can to run all 99 queries to successful completion at a given data scale factor given the resource constraints of a system”. As the size table data increases, the penalty for mistakes also increases. Things like optimal query plans and efficient execution make or break things at scale.
+50.	REST API – martin fowler
+https://martinfowler.com/articles/richardsonMaturityModel.html 
+51.	Netty 
+http://www.infoq.com/cn/articles/netty-high-performance
+
+52.	Algorithm, data mining
+https://wizardforcel.gitbooks.io/dm-algo-top10/content/k-means.html
+53.	Design pattern
+Inversion of control (IOC) and dependency injection (DI)
+Type 1 IOC 1 – interface injection, type2 IOC – setting injection, type3 IOC – constructor injection
+
+Lister - IMovieFinder
+Lister  ColonMovieFinder
+ColonMovieFinder –implements-> IMovieFinder
+
+Require Lister only depends on  IMovieFinder, introduce another assembler to populate the field in Lister class with appropriate implementation for IMovieFounder 
+
+54.	Java
+StringBuffer thread safe => StringBuffer str = new StringBuffer(“test”); str.append(“ss”)
+StringBuilder not thread safe
+55.	RAFT
+http://www.solinx.co/archives/415
+56.	Security ddos
+http://forum.huawei.com/enterprise/zh/thread-360591.html
+57.	Springmvc
+Controller singleton
+http://blog.51cto.com/lavasoft/1394669
+tutorial
+https://www.tutorialspoint.com/spring/spring_applicationcontext_container.htm
+58.	Java skills
+Labmda
+Stream, toConcurrentMap
+final Set<Server> servers = getServers();
+Map<String, String> serverData = servers.parallelStream().collect(
+toConcurrentMap(Server::getIdentifier, Server::fetchData));
+
+
+Concurrent
+CountDownLatch
+http://www.importnew.com/15731.html
+59.	Drools and rete algorithm
+https://www.cnblogs.com/wangchunlan1299/p/7678250.html 
+https://www.ibm.com/developerworks/cn/opensource/os-drools/index.html 
+60.	Mysql benchmark
+Mysql 5.7 
+-	query 10000 rps
+-	update nokey 5000 rps
+61.	Git undo file change from recent commit
+Git reset --soft HEAD~1
+Git reset HEAD path/to/unwantedfile
+Git commit –c ORIG_HEAD
+https://stackoverflow.com/questions/12481639/remove-files-from-git-commit 
+https://git-scm.com/book/zh/v1/Git-%E5%B7%A5%E5%85%B7-%E9%87%8D%E5%86%99%E5%8E%86%E5%8F%B2 
+62.	DataGovernance
+总结一下，所谓“数据治理”，不是对“数据”的治理，而是对“数据资产”的治理，是对数据资产所有相关方利益的协调与规范。
+http://baijiahao.baidu.com/s?id=1595989031095409002&wfr=spider&for=pc
+
+63.	Java compile
+Java compile –> bytecode (.class) -> class loader load to jvm -> machine code -> linker -> executable file
+Python -> interpreter -> bytecode (.pyc) ->  virtual machine convert it to machine code
+
+64.	Protocol buffer
+
+65.	Use Java Agent to Profile Hadoop Job
+https://www.linkedin.com/pulse/use-java-agent-profile-hadoop-job-bo-yang?trk=related_artice_Use%20Java%20Agent%20to%20Profile%20Hadoop%20Job_article-card_title 
+
+66.	deployment
+
+称	角色名称	内存最小要求	依赖关系	角色业务部署原则
+OMSServer	OMSServer	10GB	-	分别部署在2个管理节点上，主备配置。
+LdapServer	SlapdServer 	500MB-1GB	-	考虑性能最优化，建议所有集群中LS都与KrbServer部署在相同的节点上。
+•	分析集群：LS分别部署在2个控制节点上，主备配置。 
+•	备份集群：LS分别部署在2个控制节点上，2个均为分析集群的备用服务。
+KrbServer	KerberosServer	3MB	•	KrbServer依赖于LdapServer 
+•	KerberosServer与KerberosAdmin关联	分别部署在2个控制节点上，负荷分担。
+	KerberosAdmin	2MB		分别部署在2个控制节点上，负荷分担。
+ZooKeeper	QP（quorumpeer）	1GB	-	每个集群内配置3个在控制节点上。如需扩展，请保持数量为奇数个。
+HDFS	NN（NameNode）	4GB	•	NameNode与Zkfc关联 
+•	依赖于ZooKeeper	分别部署在2个控制节点上，主备配置。
+	Zkfc（ZooKeeper FailoverController）	1GB		分别部署在2个控制节点上，主备配置。
+	JN(JournalNode)	4GB		至少部署3个在控制节点上，每个节点保留一份备份数据。如需保留超过三份以上备份，可部署多个在控制或数据节点上，请保持数量为奇数个。
+	DN（DataNode）	4GB		至少部署3个，建议部署在数据节点上。
+Yarn	RM（ResourceManager）	2GB	依赖于HDFS和ZooKeeper	分别部署在2个控制节点上，主备配置。
+	NM（NodeManager）	2GB		部署在数据节点上，与HDFS的DataNode保持一致。
+Mapreduce	JHS（JobHistoryServer）	2GB	依赖于Yarn、HDFS和ZooKeeper	1个集群内只能部署1个在控制节点上。
+DBService	DBServer	512MB	-	分别部署在2个控制节点上，主备配置。
+Hue	Hue	1GB	依赖于DBservice	分别部署在2个控制节点上，主备配置。
+Loader	LS(LoaderServer)	2GB	依赖于MapReduce、Yarn、DBService、HDFS和ZooKeeper	•	分别部署在2个节点上，主备配置。 
+•	Loader必须部署在任意的2个NodeManager节点上。
+Spark	SR（SparkResource）	-	依赖于Yarn、Hive、HDFS、Mapreduce、ZooKeeper和DBService	无实体进程，不消耗内存。所有数据节点上都要部署，非主备。
+	JH（JobHistory）	2GB		分别部署在2个控制节点上，非主备。
+	JS（JDBCServer）	2GB		分别部署在2个控制节点上，主备配置。
+Hive	HS（HiveServer）	4GB	依赖于DBService、Mapreduce、HDFS、Yarn和ZooKeeper 	至少部署2个在控制节点上。可部署多个在控制节点上，负荷分担。
+	MS（MetaStore）	2GB		至少部署2个在控制节点上。可部署多个在控制节点上，负荷分担。
+	WebHCat	2GB		至少部署1个在控制节点上。可部署多个在控制节点上，负荷分担。
+HBase	HM（HMaster）	1GB	依赖于HDFS、ZooKeeper和Yarn	分别部署在2个控制节点上，主备配置。
+	RS（RegionServer）	6GB		部署在数据节点上，与HDFS的DataNode保持一致。
+	TS（ThriftServer）	1GB		每个集群部署3个在控制节点上。若ThriftServer访问HBase延时不能满足用户需求的时候，可以部署多个在控制或者数据节点上。
+FTP-Server	FTP-Server	1GB	依赖于HDFS和ZooKeeper	每个实例默认提供16个并发通道，当所需并发数更大时，可部署最多8个在控制节点或数据节点上。
+Flume	Flume	1GB	依赖于HDFS和ZooKeeper	建议单独部署，不建议Flume和DataNode部署在同一节点，否则会存在数据不均衡的风险。
+	MonitorServer	128MB		分别部署在2个控制节点上，非主备。
+Kafka	Broker	1GB	依赖于ZooKeeper	至少部署2个在数据节点上。若每天产生的数据量超过2TB，建议部署多个在数据节点上。
+Metadata	Metadata	512MB	依赖于DBService	1个集群内只能部署1个在控制节点上。
+Oozie	oozie	1GB	依赖于DBService、Yarn、HDFS、MapReduce和ZooKeeper	分别部署在2个控制节点上，主备配置。
+Solr	SolrServerN (N=1～5)	2GB	依赖于ZooKeeper 
+说明： 
+•	Solr数据选择保存在HDFS上时，还依赖于HDFS。 
+•	Solr数据优先选择保存到HDFS，每个节点部署三个Solr实例。 
+•	单节点实时索引速度2MB/s以上的，建议部署到本地磁盘，每个节点Solr实例部署5个，每个Solr实例单独挂载磁盘。 
+•	存储HDFS相比本地磁盘性能下降30%～50%。	每个节点可以配置5个实例。建议配置3个以上节点，每个节点上的实例个数均匀分布。 
+•	数据条目在10亿以下时，建议配置3个实例在数据节点上。 
+•	数据条目在10亿～20亿时，建议配置8～12个实例在数据节点上。 
+•	数据条目在20亿以上时，建议配置在3个或以上独立与DataNode所在节点之外的数据节点上，每个节点配置5个实例。
+	SolrServerAdmin	2GB		分别部署在2个数据节点上，非主备。
+	HBaseIndexer	512MB	依赖于HBase、HDFS和ZooKeeper	建议每个SolrServer实例所在节点均部署一个。
+SmallFS	FGCServer 	6GB	依赖于MapReduce、YARN、HDFS和ZooKeeper	分别部署在2个控制节点上，主备配置。
+Streaming	Logviewer	256MB	-	根据Supervisor的部署情况进行规划，每个部署Supervisor的节点也需要部署Logviewer。
+	Nimbus	1GB	依赖ZooKeeper	分别部署在两台控制节点上，主备配置，和UI是联动关系。
+	UI	1GB	依赖ZooKeeper	分别部署在两台控制节点上，和Nimbus是联动关系（部署Nimbus节点肯定会有UI）。
+	Supervisor	1GB	-	至少部署在一台控制节点或数据节点上，如需提供大量计算能力，可部署多个，建议单独部署在控制节点上。主要负责管理工作进程（Worker），工作进程数量、内存可配置，对资源占用较大。 
+说明： 
+Supervisor部署数目可根据如下公式进行计算，其中拓扑数和每个拓扑要求的Worker数为客户自行规划项，Supervisor配置的Worker数默认为4。 
+需要的Supervisor数=拓扑数 × 每个拓扑要求的Worker数 / Supervisor 配置的Worker数
+Redis	Redis_1、Redis_2、Redis_3……	1GB	依赖DBService	单master模式Redis至少部署在一台数据节点上，如需部署Redis集群，则至少要部署到三台数据节点上。
+
+
+
+
+
+
