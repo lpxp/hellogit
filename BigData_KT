@@ -1,0 +1,271 @@
+Hbase
+	components
+		zookeeper
+			maintain which server is alive
+			send server failure notification to master/region server
+			stores location of hbase:meta (hbase catalog table)
+		Master
+			monitor region server via zookeeper
+			WAL ?
+			assign regions to region server on startup
+			create/delete table
+		Region server
+			memo store (write cache)
+			log roller
+				clean WAL periodically
+			WAL (only one,shared by all regions)
+				reside in HDFS
+				Hlog, a class implements WAL
+			block cache (read cache, read block from HDFS)
+				bucket cache (off-heap cache)
+					data block in bucket cache
+					meta block(index and bloom block)in LRUBlock cache
+						read more write less, major memory
+				LRUBlock cache (on-heap cache) default enabled
+					read less write more, minor memory
+			region (multiple)
+				store(one per column family)
+					store file(multi)
+						block(sorted by key )
+					memstore (only one)
+	JavaAPI
+		HTable
+			CRUD
+				HTable.put(add)
+		HAdmin
+			自由主题
+	HFile
+		Index
+		block
+	offline migration
+		1. stop hbase (flush memstore)
+		2. distcp hbase directory hdfs://localhost/hbase, which contains all the data including metadata, permission, data
+		full data migartion example, distcp -queuename -prbugpcaxt
+		hdfd dfs -getfsacl R > '', get permission
+			set permission hdfs dfs -setfsacl
+		incremental data migration example, distcp -delete -append
+		3. remote cluster restart, repair data
+	primitive
+		table
+		columnfamily
+		column
+		HFile
+		namespace, like database
+	HA
+	hbck
+		metadata repair. shell: hbase hbck -repair
+	reference URL
+		https://zhuanlan.zhihu.com/p/72150364
+	region
+		自由主题
+		state
+			open
+			close
+			in transition?
+	cofiguration
+		hbase-site.xml
+			hbase.zookeeper.property.dataDir
+				zookeeper数据存放位置
+			hbase.rootdir
+				hbase数据存放位置
+		Region
+			size
+	mechanism
+		bulkload
+		region split
+			split is fast, move data to new region until major compaction when region server is not busy
+				自由主题
+			Presplit
+				regionSplitter utility (helpt to calculate the split points)
+					splitPolicy
+						HexStringSplit
+						UniformSplit
+			split process
+				1. create a new region which reference to half records of parent region
+				2. 
+			auto split
+				policy
+					constantSize
+					increaseToUpperBound
+						Min (R^2 * “hbase.hregion.memstore.flush.size”, “hbase.hregion.max.filesize”)
+					steppingSplit,hbase2.0
+				After each memstore flush or compaction finishes, split request is enqueued if split policy decides splits
+				only one region by default when table creation
+			suggestion
+				1. create table with a lower multiple of the number of region servers as number of splits
+				2. let auto split take care of the rest
+		HFile compaction
+			minor compaction
+				small hfiles compaction
+			major compaction
+				all hfiles in store compaction to one hfile
+		memstore flush
+			region level
+			memostore level
+			region server level'
+		data write
+			LSMT random write (high perf)
+			WAL->memostore->storeFile (write sequentially)
+		data read
+			1. go to zookeeper /hbase/meta-region-server to get location （which region server）of hbase:meta 
+			2. read hbase:meta and get the region and region server address
+			3. access region server and get data
+			4. read order, block cache->memostore->HFile
+				Read HFile(Bloom Filter)
+	backup&restore
+		create snapshot
+		Hlog sync-up
+		exportsnapshot
+			execute mr job to copy all data related snapshot (logs, HFiles, snapshot metadata) to another cluster, all files in ./snapshot ./archive
+		backup1
+			snapshot 'myTable', 'myTableSnapshot-122112'
+				2PC
+					1. prepare
+						2.region sever detect the new znode, check if it has the table's region, if yes, snapshot every region on it. if completed, create  a child node /acquired-snapshotname/nodex
+						1.hmaster create a /acquired-snapshotname znode on zookeeper, which include table info
+					2.commit
+						1.hmaster create a /reached-snapshotname znode on zookeeper,
+			class org.apache.hadoop.hbase.snapshot.ExportSnapshot -snapshot MySnapshot -copy-to fs://path_to_your_directory
+			disable 'myTable'
+			restore_snapshot 'myTableSnapshot-122112'
+		distcp
+		export/import
+			bin/hbase org.apache.hadoop.hbase.mapreduce.Export <tablename> <outputdir> [<versions> [<starttime> [<endtime>]]]
+	自由主题
+	自由主题
+		HDFS DistCp、Kafka Connector、ES CCR、HBase Replication
+components
+	zookeeper
+		maintain which server is alive
+		send server failure notification to master/region server
+		stores location of hbase:meta (hbase catalog table)
+	Master
+		monitor region server via zookeeper
+		WAL ?
+		assign regions to region server on startup
+		create/delete table
+	Region server
+		memo store (write cache)
+		log roller
+			clean WAL periodically
+		WAL (only one,shared by all regions)
+			reside in HDFS
+			Hlog, a class implements WAL
+		block cache (read cache, read block from HDFS)
+			bucket cache (off-heap cache)
+				data block in bucket cache
+				meta block(index and bloom block)in LRUBlock cache
+					read more write less, major memory
+			LRUBlock cache (on-heap cache) default enabled
+				read less write more, minor memory
+		region (multiple)
+			store(one per column family)
+				store file(multi)
+					block(sorted by key )
+				memstore (only one)
+JavaAPI
+	HTable
+		CRUD
+			HTable.put(add)
+	HAdmin
+		自由主题
+HFile
+	Index
+	block
+offline migration
+	1. stop hbase (flush memstore)
+	2. distcp hbase directory hdfs://localhost/hbase, which contains all the data including metadata, permission, data
+	full data migartion example, distcp -queuename -prbugpcaxt
+	hdfd dfs -getfsacl R > '', get permission
+		set permission hdfs dfs -setfsacl
+	incremental data migration example, distcp -delete -append
+	3. remote cluster restart, repair data
+primitive
+	table
+	columnfamily
+	column
+	HFile
+	namespace, like database
+HA
+hbck
+	metadata repair. shell: hbase hbck -repair
+reference URL
+	https://zhuanlan.zhihu.com/p/72150364
+region
+	自由主题
+	state
+		open
+		close
+		in transition?
+cofiguration
+	hbase-site.xml
+		hbase.zookeeper.property.dataDir
+			zookeeper数据存放位置
+		hbase.rootdir
+			hbase数据存放位置
+	Region
+		size
+mechanism
+	bulkload
+	region split
+		split is fast, move data to new region until major compaction when region server is not busy
+			自由主题
+		Presplit
+			regionSplitter utility (helpt to calculate the split points)
+				splitPolicy
+					HexStringSplit
+					UniformSplit
+		split process
+			1. create a new region which reference to half records of parent region
+			2. 
+		auto split
+			policy
+				constantSize
+				increaseToUpperBound
+					Min (R^2 * “hbase.hregion.memstore.flush.size”, “hbase.hregion.max.filesize”)
+				steppingSplit,hbase2.0
+			After each memstore flush or compaction finishes, split request is enqueued if split policy decides splits
+			only one region by default when table creation
+		suggestion
+			1. create table with a lower multiple of the number of region servers as number of splits
+			2. let auto split take care of the rest
+	HFile compaction
+		minor compaction
+			small hfiles compaction
+		major compaction
+			all hfiles in store compaction to one hfile
+	memstore flush
+		region level
+		memostore level
+		region server level'
+	data write
+		LSMT random write (high perf)
+		WAL->memostore->storeFile (write sequentially)
+	data read
+		1. go to zookeeper /hbase/meta-region-server to get location （which region server）of hbase:meta 
+		2. read hbase:meta and get the region and region server address
+		3. access region server and get data
+		4. read order, block cache->memostore->HFile
+			Read HFile(Bloom Filter)
+backup&restore
+	create snapshot
+	Hlog sync-up
+	exportsnapshot
+		execute mr job to copy all data related snapshot (logs, HFiles, snapshot metadata) to another cluster, all files in ./snapshot ./archive
+	backup1
+		snapshot 'myTable', 'myTableSnapshot-122112'
+			2PC
+				1. prepare
+					2.region sever detect the new znode, check if it has the table's region, if yes, snapshot every region on it. if completed, create  a child node /acquired-snapshotname/nodex
+					1.hmaster create a /acquired-snapshotname znode on zookeeper, which include table info
+				2.commit
+					1.hmaster create a /reached-snapshotname znode on zookeeper,
+		class org.apache.hadoop.hbase.snapshot.ExportSnapshot -snapshot MySnapshot -copy-to fs://path_to_your_directory
+		disable 'myTable'
+		restore_snapshot 'myTableSnapshot-122112'
+	distcp
+	export/import
+		bin/hbase org.apache.hadoop.hbase.mapreduce.Export <tablename> <outputdir> [<versions> [<starttime> [<endtime>]]]
+自由主题
+自由主题
+	HDFS DistCp、Kafka Connector、ES CCR、HBase Replication
