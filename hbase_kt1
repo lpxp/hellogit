@@ -1,0 +1,496 @@
+Hbase
+
+2020年5月12日
+16:13
+
+Hbase
+	1. components
+		zookeeper
+			maintain which server is alive
+			send server failure notification to master/region server
+			stores location of hbase:meta (hbase catalog table)
+		Master
+			monitor region server via zookeeper
+			WAL ?
+			assign regions to region server on startup
+			create/delete table
+		Region server
+			memo store (write cache)
+			log roller
+				clean WAL periodically
+			WAL (only one,shared by all regions)
+				reside in HDFS - /hbase/WALs/${HRegionServer_Name} 
+				Hlog, a class implements WAL
+			block cache (read cache, read block from HDFS)
+				bucket cache (off-heap cache)
+					data block in bucket cache
+					meta block(index and bloom block)in LRUBlock cache
+						read more write less, major memory
+				LRUBlock cache (on-heap cache) default enabled
+					read less write more, minor memory
+			region (multiple)
+				store(one per column family)
+					store file(multi)
+						block(sorted by key )
+					memstore (only one)
+	2. JavaAPI
+		HTable
+			CRUD
+				HTable.put(add)
+		HAdmin
+			自由主题
+	3. HFile
+	Categorized logically
+		Scanned block section
+		Non-scanned Block section
+		Load-on-open section
+		Trailer
+	Categorized physically
+	          data block
+	          index block
+	          bloom block
+	          meta block
+	Location /hbase/data/<nameSpace>/<tableName>/<encoded-regionname>/<column-family>/<filename>
+	Hfile and HDFS, Hfile is stored as a file on HDFS
+	4. primitive
+		table
+		columnfamily
+		column
+		HFile
+		namespace, like database
+	5. HA
+	6. hbck
+		metadata repair. shell: hbase hbck -repair
+		hbase hbck -repairHoles --修复所有
+	7. reference URL
+		https://zhuanlan.zhihu.com/p/72150364
+	8. region
+		自由主题
+		state
+			open
+			close
+			in transition?
+	9. cofiguration
+		hbase-site.xml (location??? Which server???)
+			hbase.zookeeper.property.dataDir
+				zookeeper数据存放位置 
+				Property from ZooKeeper’s config zoo.cfg. The directory where the snapshot is stored.
+			hbase.rootdir -  这个目录是region server的共享目录，用来持久化HBase
+				hbase数据存放位置, hdfs namespace/hbase，默认${hbase.tmp.dir}/hbase
+				<configuration> <!--配置HDFS地址-->
+				<property> <name>hbase.rootdir</name> 
+				<value>hdfs://hacluster1:8020/hbase</value> 
+				</property>
+		         hbase.zookeeper.quorum 
+			       Comma separated list of servers in the ZooKeeper ensemble,
+			       eg. host1.mydomain.com,host2.mydomain.com,host3.mydomain.com
+		        hbase.cluster.distributed true
+		        
+		        hbase.local.dir 本地文件系统上的目录，用作本地存储 默认${hbase.tmp.dir}/local/
+	                   hbase.tmp.dir 本地文件系统的临时目录 默认${java.io.tmpdir}/hbase-${user.name}
+	
+	         conf/regionservers
+	           region server list 
+	           host1
+	           host2
+	           host3
+	        conf/backup-masters
+	              backup masters list
+	         Hbase Client configuration：
+		  Fs.defaultFs = hdfs://namespace.domain, eg. 
+		
+		
+	10. Hbase HDFS directory （1.0.0 later）
+	/hbase --rootdir in hbase-stie.xml 
+	/hbase/.tmp
+	/hbase/MasterProcWALS ？？
+	/hbase/WALS
+	/hbase/data
+	/hbase/data/hbase -- hbase internal directory
+	/hbase/data/default
+	/hbase/data/default/mytable
+	/hbase/data/default/mytable/.tabledesc
+	/hbase/data/default/mytable/.tabledesc/.tableinfo.0000000001 -- table meta data
+	/hbase/data/default/mytable/.tmp -- temp data
+	/hbase/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b --region
+	/hbase/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/.regioninfo --hregion serialization info
+	/hbase/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/cf
+	/hbase/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/cf/eab191595e614af0b75e14475fd58eca -- hbase file name
+	/hbase/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/recovered.edits
+	/hbase/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/recovered.edits/2.seqid
+	/hbase/archive/data
+	/hbase/archive/data/default
+	/hbase/archive/data/default/mytable
+	/hbase/archive/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b
+	/hbase/archive/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/cf
+	/hbase/archive/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/cf/eab191595e614af0b75e14475fd58eca
+	/hbase/archive/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/cf-2
+	/hbase/archive/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/cf-2/d26b377dfb8c43e4abee2d5e79a7180d
+	/hbase/archive/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/recovered.edits
+	/hbase/archive/data/default/mytable/bcc4a32d806193ddf0600d026237ff8b/recovered.edits/22.seqid
+	/hbase/data/<namespace>
+	/hbase/hbase.id
+	/hbase/hbase.version
+	/hbase/oldWALS
+	11. region balancer
+
+Architecture
+
+2020年7月29日
+15:44
+
+
+
+
+Hbase 解压和压缩很多，CPU越多越好
+
+Backup & Restore
+
+2020年5月15日
+11:42
+
+create snapshot
+Hlog sync-up
+exportsnapshot
+	execute mr job to copy all data related snapshot (logs, HFiles, snapshot metadata) to another cluster, all files in ./snapshot ./archive
+	将元数据放到/Hbase/.Hbase-snapshot中，将原始数据放到/Hbase/archive目录中
+	
+backup1
+	snapshot 'myTable', 'myTableSnapshot-122112'
+	class org.apache.hadoop.hbase.snapshot.ExportSnapshot -snapshot MySnapshot -copy-to fs://path_to_your_directory
+	disable 'myTable'
+	restore_snapshot 'myTableSnapshot-122112'
+	
+Backup2
+	snapshot 'myTable', 'myTableSnapshot-122112'
+	class org.apache.hadoop.hbase.snapshot.ExportSnapshot -snapshot MySnapshot -copy-to fs://path_to_your_directory
+	hbase org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles \
+	-Dhbase.mapreduce.bulkload.max.hfiles.perRegion.perFamily=1024 \
+	hdfs://dst-hbase-root-dir/hbase/archive/datapath/tablename/filename tablename
+	hbase hbck -repairHoles
+	http://bdlabs.edureka.co/static/help/topics/admin_hbase_import.html#concept_fqb_yz4_cq_unique_1
+Incremental backup ?
+利用snapshot迁移全量数据，利用replication迁移增量数据 ??
+来自 <https://segmentfault.com/a/1190000037634239> 
+
+Distcp
+
+export/import
+	bin/hbase org.apache.hadoop.hbase.mapreduce.Export <tablename> <outputdir> [<versions> [<starttime> [<endtime>]]]
+	
+	Run MR Job behind.
+Data replication for disaster recovery
+	HDFS DistCp、Kafka Connector、ES CCR、HBase Replication
+Backup vs Archive
+	Backup, back up those data which is actively used. Origional data and backup data co-exist.
+	Archive, back up those data which is no longer actively used. The origional data can be removed. Archived data is usually stored on cheap device
+	
+offline migration
+	1. stop hbase (flush memstore)
+	2. distcp hbase directory hdfs://localhost/hbase, which contains all the data including metadata, permission, data
+	full data migartion example, distcp -queuename -prbugpcaxt
+	hdfs dfs -getfsacl R > '', get permission
+		set permission, hdfs dfs -setfsacl
+	incremental data migration example, distcp -delete -append
+	3. remote cluster restart, repair data
+	
+	
+Replication
+	
+开源的Replication方案，主要的原因包括：
+	• HBase Replication抗热点能力差，每台机器只能处理自己的日志
+	• HBase Replication Failover的设计存在缺陷，导致一旦RS宕机就会出现长时间同步延迟
+	• HBase Replication与内核争抢资源，无法独立扩容
+	• HBase Replication的管理依赖表属性配置，配置项很多，在混合云模式下很难维护
+	
+	来自 <https://zhuanlan.zhihu.com/p/86264469> 
+	
+HBase数据迁移和备份
+https://zhuanlan.zhihu.com/p/161695582
+
+Planning
+
+2020年5月15日
+11:50
+
+hbase.hregion.max.filesize -- region size
+hbase.hregion.memstore.flush.size -- memostore size
+hbase.regionserver.global.memstore.lowerLimit -- HeapFractionForMemstore 
+
+这里需要提出一个’Disk / Java Heap Ratio’的概念，意思是说一台RegionServer上1bytes的Java内存大小需要搭配多大的硬盘大小最合理。在给出合理的解释在前，先把结果给出来：
+ 
+Disk Size / Java Heap = RegionSize / MemstoreSize * ReplicationFactor * HeapFractionForMemstore * 2
+ 
+按照默认配置，RegionSize = 10G，对应参数为hbase.hregion.max.filesize；
+MemstoreSize = 128M，对应参数为hbase.hregion.memstore.flush.size；
+ReplicationFactor = 3，对应参数为dfs.replication；
+HeapFractionForMemstore = 0.4，对应参数为hbase.regionserver.global.memstore.lowerLimit；
+计算为：10G / 128M * 3 * 0.4 * 2 = 192，意思是说RegionServer上1bytes的Java内存大小需要搭配192bytes的硬盘大小最合理
+
+
+硬盘容量纬度下Region个数：Disk Size / (RegionSize * ReplicationFactor) 
+Java Heap纬度下Region个数：Java Heap * HeapFractionForMemstore / (MemstoreSize / 2 ) 
+Disk Size / (RegionSize * ReplicationFactor)  =  Java Heap * HeapFractionForMemstore / (MemstoreSize / 2 ) 
+
+来自 <https://sq.163yun.com/blog/article/155473761979842560> 
+
+
+Bulkload setting
+hbase.regionserver.global.memstore.upperlimit = 0.11
+hbase.regionserver.global.memstore.lowerlimit = 0.10
+raise the block cache to 0.6–0.7
+
+来自 <https://www.oreilly.com/library/view/architecting-hbase-applications/9781491915806/ch04.html> 
+
+来自 <https://www.oreilly.com/library/view/architecting-hbase-applications/9781491915806/ch04.html> 
+
+make compaction more efficient by bumping up following parameters:
+	• Lower bound on number of files in any minor compaction
+	hbase.hstore.compaction.min （old version hbase.hstore.compactionThreshold : ( Default3 )）
+	• Upper bound on number of files in any minor compaction.
+	hbase.hstore.compaction.max ( Default10 )
+	• The number of threads to handle a minor compaction.
+	hbase.regionserver.thread.compaction.small ( Default1 )
+	• The number of threads to handle a major compaction.
+	hbase.regionserver.thread.compaction.large ( Default => 1 )
+
+来自 <https://community.cloudera.com/t5/Community-Articles/Tuning-Hbase-for-optimized-performance-Part-3/ta-p/248159> 
+
+hbase.hstore.blockingStoreFiles
+默认值 10，一个列族下HFile数量达到该值就会阻塞写入，等待Compaction完成。生产环境中默认值太小了，一般建议设置大点比如100，避免出现阻塞更新的情况。
+hbase.hregion.majorcompaction
+默认值 604800000，就是7天，这是Major Compaction周期性触发的时间间隔。因为通常Major Compaction持续时间长、资源消耗大，建议关闭HBase Major Compaction，参数设为0，并在业务低峰期手动执行
+
+来自 <https://zhuanlan.zhihu.com/p/142965000> 
+
+hbase.regionserver.global.memstore.lowerLimit
+
+来自 <https://sq.163yun.com/blog/article/155473761979842560> 
+
+
+
+
+Sizing
+
+2021年3月20日
+18:36
+
+Hfile size:
+WAL size：
+Memstore size:
+Hbase region size: 
+Block cache size：
+#Regions per region server: 
+
+Daily incoming data size：
+Planned stored data size：
+
+
+Get data size per query
+#concurrent queries
+
+#compact
+
+bulkload
+
+
+
+
+
+Most of the region count limitations come from the WAL and memstore. When using bulkload, the region count is limited by index size and response time.It is recommended to test read response time scaling up from 100 regions; it is not unheard of for successful deployments to have 150–200 regions per RegionServer. When using bulk load, it is important to reduce the upper limit (hbase.regionserver.global.memstore.upper limit) and lower limit (hbase.regionserver.global.memstore.lower limit) to 0.11 and 0.10, respectively, and then raise the block cache to 0.6–0.7 depending on available heap. Memsore and block cache tuning will allow HBase to keep more data in memory for reads.
+
+来自 <https://www.oreilly.com/library/view/architecting-hbase-applications/9781491915806/ch04.html> 
+
+
+来自 <https://www.oreilly.com/library/view/architecting-hbase-applications/9781491915806/ch04.html> 
+
+
+
+Mechanism
+
+2020年5月15日
+11:45
+
+MetaData
+
+2020年7月30日
+10:27
+
+Hbase:meta 表
+
+
+
+
+
+
+
+
+
+Scan
+
+2020年5月15日
+11:45
+
+Compaction
+
+2020年5月15日
+11:47
+
+HFile compaction
+	minor compaction
+		small hfiles compaction
+	major compaction
+		all hfiles in store compaction to one hfile
+
+Region Split
+
+2020年5月15日
+11:46
+
+region split
+	split is fast, move data to new region until major compaction when region server is not busy
+		自由主题
+	Presplit
+		regionSplitter utility (helpt to calculate the split points)
+			splitPolicy
+				HexStringSplit
+				UniformSplit
+	split process
+		1. create a new region which reference to half records of parent region
+	auto split
+		policy
+			constantSize
+			increaseToUpperBound
+				Min (R^2 * “hbase.hregion.memstore.flush.size”, “hbase.hregion.max.filesize”)
+			steppingSplit,hbase2.0
+		After each memstore flush or compaction finishes, split request is enqueued if split policy decides splits
+		only one region by default when table creation
+	suggestion
+		1. create table with a lower multiple of the number of region servers as number of splits
+		2. let auto split take care of the rest
+
+Read and Write
+
+2020年5月15日
+11:45
+
+data write
+	LSMT random write (high perf)
+	WAL->memostore->storeFile (write sequentially)
+	
+	1. 将数据写入WAL中
+2. 根据TableName、Rowkey和ColumnFamily将数据写入对应的Memstore中
+3. Memstore通过特定算法将内存中的数据刷写成Storefile写入磁盘，并标记WAL sequence值
+4. Storefile定期合小文件
+	
+	来自 <https://zhuanlan.zhihu.com/p/72150364> 
+	
+	
+data read
+	1. go to zookeeper /hbase/meta-region-server to get location （which region server）of hbase:meta 
+	2. read hbase:meta and get the region and region server address
+	3. access region server and get data
+	4. read order, block cache->memostore->HFile
+		Read HFile(Bloom Filter)
+		
+		
+BlockCache为RegionServer中的 读缓存，一个RegionServer共用一个BlockCache。
+		
+		
+
+Snapshot
+
+2020年5月15日
+11:48
+
+Snapshot mechanism
+
+	2PC
+		1. prepare
+			1.hmaster create a /acquired-snapshotname znode on zookeeper, which include table info
+			2.region sever detect the new znode, check if it has the table's region, if yes, snapshot every region on it. if completed, create  a child node /acquired-snapshotname/nodex
+		2.commit
+			1.hmaster create a /reached-snapshotname znode on zookeeper, move the file from temp directories to regualr directories
+	Consolidate
+		hmaster consolidate the snapshot manifest files on region servers
+		
+	Hbase 0.95以后才有功能
+	
+	
+	
+	snapshot流程主要涉及3个步骤：
+	1. 加一把全局锁，此时不允许任何的数据写入更新以及删除
+	2. 将Memstore中的缓存数据flush到文件中（可选）
+	3. 为所有HFile文件分别新建引用指针，这些指针元数据就是snapshot
+	Snapshot path：
+	/hbase/.hbase-snapshot/snapshotname/data.manifest
+	/hbase/.hbase-snapshot/snapshotname/.snapshotinfo
+     /hbase/.hbase-snapshot/snapshotname/.inprogress
+	
+	Details http://hbasefly.com/2017/09/17/hbase-snapshot/
+	
+	Hbase Snapshot, take a snapshot of hfile, hlog and metadata
+	
+	https://blog.csdn.net/huang_quanlong/article/details/50875567 
+
+BulkLoad
+
+2020年5月15日
+11:50
+
+数据迁移
+
+第一步：迁移snapshot
+ hbase org.apache.hadoop.hbase.snapshot.ExportSnapshot \
+    -snapshot snapshot_src_table \
+-copy-fromhdfs://src-hbase-root-dir/hbase\
+-copy-tohdfs://dst-hbase-root-dir/hbase\
+    -mappers 20 \
+    -bandwidth 1024
+第二步：恢复snapshot
+命令 ：restore_snapshot ‘snapshotName’
+备注：需要对表进行过disable才能进行restore_snapshot的操作，如果这个还在写入数据，需要采用第三步bulkload的方式导入
+第三步：将snapshot使用bulkload的方式导入
+hbase org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles \
+-Dhbase.mapreduce.bulkload.max.hfiles.perRegion.perFamily=1024 \
+hdfs://dst-hbase-root-dir/hbase/archive/datapath/tablename/filename tablename
+备注：这种方式需要将所有的文件进行遍历并全部通过bulkload导入，上面的只是一个文件的导入，这种方式不需要disable表。
+
+作者：XXCode
+链接：https://www.jianshu.com/p/aef017c8e4df
+来源：简书
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+Block Cache
+
+2021年3月20日
+18:42
+
+In the default configuration, HBase uses a single on-heap cache. If you configure the off-heap BucketCache, the on-heap cache is used for Bloom filters and indexes, and the off-heap BucketCache is used to cache data blocks. This is called the Combined Blockcache configuration. The Combined BlockCache allows you to use a larger in-memory cache while reducing the negative impact of garbage collection in the heap, because HBase manages the BucketCache instead of relying on the garbage collector.
+
+来自 <https://docs.cloudera.com/documentation/enterprise/5/latest/topics/admin_hbase_blockcache_configure.html#concept_vqm_zrg_2r> 
+
+
+RegionServer Grouping
+
+2020年8月13日
+11:45
+
+元数据
+
+2020年8月27日
+14:52
+
+元数据访问，不仅在数据访问的第一次进行。在数据访问的时候，都会访问元数据？？？
+
+双实例
+
+2021年1月25日
+17:36
+
+两个hbase实例 使用bulkload需要使用viewfs，yarn 只能使用一个hdfs路径
+
+LSM
+
+2021年5月31日
+19:34
