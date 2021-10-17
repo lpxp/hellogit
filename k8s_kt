@@ -1,0 +1,365 @@
+Primitives
+
+2020年7月1日
+18:28
+
+Docker
+	Image
+	Repository
+	container
+
+
+kube-scheduler 调度流程
+kube-scheduler 给一个 pod 做调度选择包含两个步骤：
+	1. 过滤
+	2. 打分
+过滤阶段会将所有满足 Pod 调度需求的 Node 选出来。例如，PodFitsResources 过滤函数会检查候选 Node 的可用资源能否满足 Pod 的资源请求。在过滤之后，得出一个 Node 列表，里面包含了所有可调度节点；通常情况下，这个 Node 列表包含不止一个 Node。如果这个列表是空的，代表这个 Pod 不可调度。
+在打分阶段，调度器会为 Pod 从所有可调度节点中选取一个最合适的 Node。根据当前启用的打分规则，调度器会给每一个可调度节点进行打分。
+最后，kube-scheduler 会将 Pod 调度到得分最高的 Node 上。如果存在多个得分最高的 Node，kube-scheduler 会从中随机选取一个。
+
+来自 <https://kubernetes.io/zh/docs/concepts/scheduling-eviction/kube-scheduler/> 
+
+Pod
+
+2020年7月3日
+10:58
+
+进入pod
+kubectl exec -ti <your-pod-name>  -n <your-namespace>  -- /bin/sh
+
+// Get output from running 'date' from pod <pod-name>. By default, output is from the first container.
+$ kubectl exec <pod-name> date
+// Get output from running 'date' in container <container-name> of pod <pod-name>.
+$ kubectl exec <pod-name> -c <container-name> date
+// Get an interactive TTY and run /bin/bash from pod <pod-name>. By default, output is from the first container.
+$ kubectl exec -ti <pod-name> /bin/bash
+
+进入容器
+docker exec -ti  <your-container-name>   /bin/sh
+
+
+
+
+Label
+
+2020年7月3日
+16:35
+
+给节点加标签
+#获取node list
+Kubectl get nodes
+#给node加一个disk=ssd的标签
+Kubectl lable nodes <node-name> disktyp=ssd 
+
+
+#部署pod到指定的node
+
+Pod-nginx.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    env: test
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    imagePullPolicy: IfNotPresent
+  nodeSelector:
+    disktype: ssd
+
+kubectl create -f https://k8s.io/examples/pods/pod-nginx.yaml
+
+#再节点上执行
+kubectl get pods --output=wide
+
+
+
+来自 <https://kubernetes.io/zh/docs/tasks/configure-pod-container/assign-pods-nodes/> 
+
+
+
+
+
+
+2020年7月2日
+19:59
+
+Service
+
+Kubernetes Service 定义了这样一种抽象：一个 Pod 的逻辑分组，一种可以访问它们的策略 —— 通常称为微服务。 这一组 Pod 能够被 Service 访问到，通常是通过 Label Selector（查看下面了解，为什么可能需要没有 selector 的 Service）实现的。
+
+一个 Service 在 Kubernetes 中是一个 REST 对象，和 Pod 类似。 像所有的 REST 对象一样， Service 定义可以基于 POST 方式，请求 API server 创建新的实例。
+
+来自 <https://kubernetes.io/zh/docs/concepts/services-networking/service/#headless-services> 
+
+
+没有 selector 的 Service
+
+服务最常见的是抽象化对 Kubernetes Pod 的访问，但是它们也可以抽象化其他种类的后端。 实例:
+	• 希望在生产环境中使用外部的数据库集群，但测试环境使用自己的数据库。
+	• 希望服务指向另一个 命名空间 中或其它集群中的服务。
+	• 您正在将工作负载迁移到 Kubernetes。 在评估该方法时，您仅在 Kubernetes 中运行一部分后端。
+在任何这些场景中，都能够定义没有 selector 的 Service。 实例:
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9376
+
+由于此服务没有选择器，因此 不会 自动创建相应的 Endpoint 对象。 您可以通过手动添加 Endpoint 对象，将服务手动映射到运行该服务的网络地址和端口：
+
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: my-service
+subsets:
+  - addresses:
+      - ip: 192.0.2.42
+    ports:
+      - port: 9376
+
+访问没有 selector 的 Service，与有 selector 的 Service 的原理相同。 请求将被路由到用户定义的 Endpoint， YAML中为: 192.0.2.42:9376 (TCP)。
+
+
+
+
+
+
+
+
+Endpoint
+
+2020年7月3日
+14:16
+
+Headless Services
+
+2020年7月3日
+10:37
+
+有时不需要或不想要负载均衡，以及单独的 Service IP。 遇到这种情况，可以通过指定 Cluster IP（spec.clusterIP）的值为 "None" 来创建 Headless Service。
+您可以使用 headless Service 与其他服务发现机制进行接口，而不必与 Kubernetes 的实现捆绑在一起。
+对这 headless Service 并不会分配 Cluster IP，kube-proxy 不会处理它们，而且平台也不会为它们进行负载均衡和路由。 DNS 如何实现自动配置，依赖于 Service 是否定义了 selector。
+配置 Selector
+对定义了 selector 的 Headless Service，Endpoint 控制器在 API 中创建了 Endpoints 记录，并且修改 DNS 配置返回 A 记录（地址），通过这个地址直接到达 Service 的后端 Pod 上。
+不配置 Selector
+对没有定义 selector 的 Headless Service，Endpoint 控制器不会创建 Endpoints 记录。 然而 DNS 系统会查找和配置，无论是：
+	• ExternalName 类型 Service 的 CNAME 记录
+	• 记录：与 Service 共享一个名称的任何 Endpoints，以及所有其它类
+
+来自 <https://kubernetes.io/zh/docs/concepts/services-networking/service/#headless-services> 
+
+
+
+
+
+
+Headless Service 给 StatefulSet 控制器为集合中每个 Pod 创建的 DNS 条目提供了一个宿主。因为 Headless Service 名为 mysql，所以可以通过在同一 Kubernetes 集群和 namespace 中的任何其他 Pod 内解析 <pod-name>.mysql 来访问 Pod。
+
+Ingress
+
+2020年7月2日
+20:05
+
+Ingress 
+Ingress exposes HTTP and HTTPS routes from outside the cluster to services within the cluster. Traffic routing is controlled by rules defined on the Ingress resource.
+
+来自 <https://kubernetes.io/docs/concepts/services-networking/ingress/> 
+
+是授权入站连接到达集群服务的规则集合
+
+配置：
+
+1: apiVersion: extensions/v1beta1
+2: kind: Ingress
+3: metadata:
+4:   name: test-ingress
+5: spec:
+6:   rules:
+7:   - http:
+8:       paths:
+9:       - path: /testpath
+10:        backend:
+11:           serviceName: test
+12:           servicePort: 80
+
+
+
+正如 services doc中描述的那样，backend是一个service:port的组合。Ingress的流量被转发到它所匹配的backend。
+
+
+
+Minikube.
+
+2020年7月2日
+20:28
+
+Minikube.
+
+来自 <http://docs.kubernetes.org.cn/729.html> 
+
+
+namespace
+
+2020年7月2日
+20:30
+
+Kubernetes可以使用Namespaces（命名空间）创建多个虚拟集群。
+
+当团队或项目中具有许多用户时，可以考虑使用Namespace来区分，a如果是少量用户集群，可以不需要考虑使用Namespace，如果需要它们提供特殊性质时，可以开始使用Namespace。
+Namespace为名称提供了一个范围。资源的Names在Namespace中具有唯一性。
+Namespace是一种将集群资源划分为多个用途(通过 resource quota)的方法。
+在未来的Kubernetes版本中，默认情况下，相同Namespace中的对象将具有相同的访问控制策略。
+对于稍微不同的资源没必要使用多个Namespace来划分，例如同意软件的不同版本，可以使用labels(标签)来区分同一Namespace中的资源。
+
+
+Redis on K8s
+
+2020年7月3日
+11:31
+
+https://juejin.im/post/5c989ff2f265da60f206ffe4
+
+StatefulSet
+
+2020年7月3日
+14:48
+
+在 Kubernetes 系统中，Pod 的管理对象 RC、Deployment、DaemonSet 和 Job 都是面向无状态的服务。但现实中有很多服务是有状态的，特别是一些复杂的 中间件集群，例如 MySQL 集群、MongoDB 集群、Akka 集群、Zookeeper 集群的等，这些应用集群有以下一些共同点。
+• 每个节点都有固定的身份 ID，通过这个 ID，集群中的成员可以相互发现并且通信。
+• 集群的规模是比较固定的，集群规模不能随意变道。
+• 集群里的每个节点都是有状态的，通常会持久化数据到永久存储中。
+• 如果磁盘损坏，则集群里的某个节点无法正常运行，集群功能受损。
+
+它有如下一些特性。
+• StatefulSet 里的每个 Pod 都有文档、唯一的网络标识，可以用来发现集群内的其他成员。假设 StatefulSet 的名字叫 kafka，那么第一个 Pod 叫 kafka-0，第二个叫 kafka-1，以此类推。
+• StatefulSet 控制的 Pod 副本的启停顺序是受控的，操作第 n 个 Pod 是，前 n-1 个 Pod 已经是运行且装备好的状态。
+• StatefulSet 里的 Pod 采用稳定的持久化存储卷，通过 PV/PVC 来实现，删除 Pod 时默认不会删除与 StatefulSet 相关的存储卷（为了保证数据的安全）。
+
+
+稳定的存储
+Kubernetes 为每个 VolumeClaimTemplate 创建一个 PersistentVolume。在上面的 nginx 示例中，每个 Pod 将会得到基于 StorageClass my-storage-class 提供的 1 Gib 的 PersistentVolume。如果没有声明 StorageClass，就会使用默认的 StorageClass。当一个 Pod 被调度（重新调度）到节点上时，它的 volumeMounts 会挂载与其 PersistentVolumeClaims 相关联的 PersistentVolume。请注意，当 Pod 或者 StatefulSet 被删除时，与 PersistentVolumeClaims 相关联的 PersistentVolume 并不会被删除。要删除它必须通过手动方式来完成。
+
+来自 <https://kubernetes.io/zh/docs/concepts/workloads/controllers/statefulset/> 
+
+
+来自 <https://wiki.shileizcc.com/confluence/display/KUB/Kubernetes+StatefulSet> 
+
+StatefulSet.xml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: nginx
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  selector:
+    matchLabels:
+      app: nginx # has to match .spec.template.metadata.labels
+  serviceName: "nginx"
+  replicas: 3 # by default is 1
+  template:
+    metadata:
+      labels:
+        app: nginx # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: nginx
+        image: k8s.gcr.io/nginx-slim:0.8
+        ports:
+        - containerPort: 80
+          name: web
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "my-storage-class"
+      resources:
+        requests:
+          storage: 1Gi
+
+来自 <https://kubernetes.io/zh/docs/concepts/workloads/controllers/statefulset/> 
+
+
+
+CSI
+
+2020年7月7日
+20:20
+
+https://feisky.gitbooks.io/kubernetes/plugins/csi.html
+
+CSI 也是基于 gRPC 实现。详细的 CSI SPEC 可以参考 这里，它要求插件开发者要实现三个 gRPC 服务：
+• Identity Service：用于 Kubernetes 与 CSI 插件协调版本信息
+• Controller Service：用于创建、删除以及管理 Volume 存储卷
+• Node Service：用于将 Volume 存储卷挂载到指定的目录中以便 Kubelet 创建容器时使用（需要监听在 /var/lib/kubelet/plugins/[SanitizedCSIDriverName]/csi.sock）
+由于 CSI 监听在 unix socket 文件上， kube-controller-manager 并不能直接调用 CSI 插件。为了协调 Volume 生命周期的管理，并方便开发者实现 CSI 插件，Kubernetes 提供了几个 sidecar 容器并推荐使用下述方法来部署 CSI 插件：
+
+来自 <https://feisky.gitbooks.io/kubernetes/plugins/csi.html> 
+
+
+
+
+
+The following StorageClass, for example, enables dynamic creation of “fast-storage” volumes by a CSI volume plugin called “csi-driver.example.com”.
+
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: fast-storage
+provisioner: csi-driver.example.com
+parameters:
+  type: pd-ssd
+  csi.storage.k8s.io/provisioner-secret-name: mysecret
+  csi.storage.k8s.io/provisioner-secret-namespace: mynamespace
+
+来自 <https://kubernetes.io/blog/2019/01/15/container-storage-interface-ga/> 
+
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-request-for-storage
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: fast-storage
+
+来自 <https://kubernetes.io/blog/2019/01/15/container-storage-interface-ga/> 
+
+
+
+Deployment
+
+2020年7月8日
+17:46
+
+
+
