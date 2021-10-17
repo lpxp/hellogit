@@ -1,0 +1,528 @@
+Architecture
+
+2020年7月7日
+20:08
+
+
+	1. Active NN stores fsimage
+	2. Journal node stores edit log
+
+MetaData
+
+
+元数据分两层：
+Namespace管理层，文件目录和文件和数据块之间的关系
+块管理层，BlockMap， 数据块和实际的存储位置之间的关系
+
+HDFS
+
+2020年5月13日
+14:31
+
+Hadoop
+	1. datanode
+		when it starts up, it starts to scan through the local file system and send a blockreport, a list of blocks, to name node. Each block stores in separate file in local file system.
+		metadata
+		register to namenode
+	2. namenode
+		2. EditLog
+			if single name node
+		1. FsImage
+			keep the meta data including block location, data node info
+		metadata
+		two interface
+			http(50070)
+			RPC server (9000), receive the request from data node and client
+		handle datanode failure
+			自由主题
+	3. namespace
+		HDFS的Namespace（命名空间）用于记录系统中目录、文件、块之间的映射关系
+		file system, like the path, /hadoop/test
+	4. Acrchive
+	5. balancer
+	文件健康检查 hdfs fsck /
+	6. quota
+	7. Zookeeper failover controller
+		zookeeper client, monitor and manage name node state
+		collocate with name node, one to one relationship
+	8. zookeeper
+		at least 3, can collocate with active name node and standby name node
+		configure to store data on separate disk drives from HDFS metadata
+	9. journalnode
+		light weight, generally collocated with name node/resource manager/job tracker
+		at least 3 nodes
+		metadata
+		persist edit log
+	10. config
+		hdfs-site.xml
+			namenode
+			datanode
+		core-site.xml
+			2.tempdir
+			1.defaultFS
+	11. Metadata
+	HDFS metadata represents the structure of HDFS directories and files in a tree. It also includes the various attributes of directories and files, such as ownership, permissions, quotas, and replication factor.
+		○ Namenode metadata:
+		○ Datanode metadata:
+		
+	fsimage and eidts
+	
+	在HDFS中，fsimage和eidts是NameNode两个非常重要的文件。
+	其中，fsimage是HDFS文件系统存于硬盘中的元数据检查点，里面记录了自最后一次检查点之前HDFS文件系统中所有目录和文件的序列化信息；而edits保存了自最后一次检查点之后所有针对HDFS文件系统的操作，比如：增加文件、重命名文件、删除目录等等。
+	
+	来自 <http://lxw1234.com/archives/2015/08/440.htm> 
+		
+		
+	12. Quota
+	persisent with fsimage
+	space qutoa, files number quota, storage type quota
+	command, hdfs dfsadmin -setQuota
+	13. Data integrity
+	Checksum
+	a. Datanode receives data from client or other datanodes
+	b. Client read data from datanode
+	c. Backend process DataBlockScanner check the checksum of the data on datanode
+	14. 
+
+HDFS Archive Storage
+
+2020年12月9日
+17:05
+
+	• Storage policy：LAZY_PERSIST, ALL_SSD，ONE_SSD,HOT,WARM,COLD
+
+
+	• Datanode 设置 storage policy
+< property >
+   < name >dfs.datanode.data.dir</ name >
+   < value >[ARCHIVE]file:///opt/hadoop/dfs.data</ value >
+</ property >
+
+	• 查看和设置目录存储策略
+hadoop dfsadmin  -setStoragePolicy  /tmp/lp_test COLD
+hadoop dfsadmin  -getStoragePolicy  /tmp/lp_test
+
+来自 <https://blog.csdn.net/lipeng_bigdata/article/details/53374391> 
+
+
+例子：
+
+标记一台DataNode为[ARCHIVE]后，并标记hdfs路径/tmp/lp_test为HOT后，如果执行hdfs mover会怎么样
+
+/tmp/lp_test 会被移动到disk的节点上
+
+以前已经存储在机器上的文件不会移动。
+
+Volume planning
+
+2020年5月15日
+11:57
+
+1. Volume planning
+     master-slave name node can allocate 300,000,000 file objects
+     single data node can allocate 5,000,000 blocks
+
+Maintainence
+
+2020年5月15日
+11:52
+
+Add & Decommission Nodes
+
+2020年5月15日
+11:55
+
+Backup&Restore
+
+2020年5月15日
+11:54
+
+1. write data process (put)
+	1. client is starting to write data to a HDFS file, it first write data to a local file. when the local file accumulates a full block of data, split the file into packets and then client send RPC request to namenode for a list of data node
+	2. namenode check if the target file exists, permission etc. create entry if yes
+	put command, will launch mapreduce job 
+	3.  client flush the packets of data to the first node, and the first node starts receiving the data and write it to its repository  and then transfer that data to second data node
+	4. the last data node will respond with a ack packet to the client, client receives the ack and then delete the packet in the data queue.
+	5. block, 128MB; packet, 64KB; chunk 512B (data validation)
+2. read data process (get)
+	1. client sends RPC request to name node for the list of data nodes which host data blocks of the file 
+	2. read block from one data node in the list
+	
+	
+	
+	
+	
+
+General Commands
+
+2020年5月15日
+11:59
+
+1. File health check
+hdfs fsck /
+2. Offline eidt viewer
+Hdfs oev
+
+
+
+
+
+
+Case: rm hdfs data and data recovery
+
+2021年3月10日
+11:26
+
+http://3ms.huawei.com/km/blogs/details/9571696
+
+
+
+
+Mechanism
+
+2020年5月15日
+11:53
+
+Snapshot
+
+2020年5月15日
+11:56
+
+1. hdfs snapshot
+	2. snapshot does not adversely affect regular hdfs operation, snapshot data =current data - modification data 
+	1. no data copy, only record block list and file size
+	
+	Snapshot  only record block list and file size
+	
+2. Operation
+	1. Allow snapshot
+	Hdfs dfs -allowSnapshot <path>
+	2. Create snapshot
+	Hdfs dfs -createSnapshot <path> snapshotName
+	
+	Eg. Hdfs dfs -createSanpshot /data/a s1
+	S1 location: /data/a/.snapshot/s1
+	3. Copy data
+	Distcp /data/a/.snapshot/s1 /data/a_target
+	4. Create another snapshot after modification
+	5. Hdfs dfs -createSnapshot <path> snapshotName
+	Eg. Hdfs dfs -createSnapshot -createSanpshot /data/a s2
+	6. Check The difference between two snapshots
+	Hdfs snapshotDiff /data/a s1 s2
+	7. Copy the difference
+	Hadoop distcp -diff s1 s2 -update /data/a /data/a_target
+	
+	
+3. Mechanism
+
+snapshot只拷贝文件目录的元数据信息。多次针对同一目录进行snapshot，新的snapshot只记录跟当时snapshot不同的inode信息。恢复时，使用snapshotid 和 当时没发生变更的inode信息进行恢复
+
+修改包括3大类信息:
+	1.所有被modify过的文件/目录,不包括create,delete
+	2.所有目录下的被create和deleted的子文件
+	3.所有被rename过的文件/目录信息
+
+
+
+https://blog.csdn.net/Androidlushangderen/article/details/51282612#t3
+
+Federation
+
+2020年5月15日
+11:55
+
+1. Federation (multiple name nodes)
+
+
+	
+	
+	Block Pool
+	A Block Pool is a set of blocks that belong to a single namespace. Datanodes store blocks for all the block pools in the cluster. Each Block Pool is managed independently. This allows a namespace to generate Block IDs for new blocks without the need for coordination with the other namespaces. A Namenode failure does not prevent the Datanode from serving other Namenodes in the cluster.
+	A Namespace and its block pool together are called Namespace Volume. It is a self-contained unit of management. When a Namenode/namespace is deleted, the corresponding block pool at the Datanodes is deleted. Each namespace volume is upgraded as a unit, during cluster upgrade.
+	
+	ClusterID
+	A ClusterID identifier is used to identify all the nodes in the cluster. When a Namenode is formatted, this identifier is either provided or auto generated. This ID should be used for formatting the other Namenodes into the cluster.
+	
+	来自 <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/Federation.html> 
+	
+	
+	
+	
+	ViewFS
+		confiuration steps
+			1. HDFS client core-site.xml. 
+			a. add entry 1, <xi:include href="mountTable.xml"/> 
+			b. add entry , <property> <name>fs.default.name -> "viewFS://hacluster"
+			2. mounttable.xml,  map th "/user" to real namespace 
+			<configuration><name>fs.viewfs.mounttable.hacluster.link./user</name><value>hdfs://namenode1:9000/user</value>
+		reference details
+			https://blog.csdn.net/Androidlushangderen/article/details/51315618?depth_1-utm_source=distribute.pc_relevant.none-task&utm_source=distribute.pc_relevant.none-task
+			https://www.cnblogs.com/cxzdy/p/5110030.html
+		client mount table (define the mapping between global path to namespace)
+	Routed-based
+	
+
+Data read and write
+
+2020年5月15日
+11:52
+
+1. write data process (put)
+	1. client is starting to write data to a HDFS file, it first write data to a local file. when the local file accumulates a full block of data, split the file into packets and then client send RPC request to namenode for a list of data node
+	2. namenode check if the target file exists, permission etc. create entry if yes
+	put command, will launch mapreduce job 
+	3.  client flush the packets of data to the first node, and the first node starts receiving the data and write it to its repository  and then transfer that data to second data node
+	4. the last data node will respond with a ack packet to the client, client receives the ack and then delete the packet in the data queue.
+	5. block, 128MB; packet, 64KB; chunk 512B (data validation)
+2. read data process (get)
+	1. client sends RPC request to name node for the list of data nodes which host data blocks of the file 
+	2. read block from one data node in the list
+
+Namenode HA
+
+2020年5月15日
+11:58
+
+1. namenode HA
+	automatic failover
+		zkfc
+			zookeeper session management
+				zkfc holds a opens zk session and a znode lock (ephemeral node), will be deleted if session expires
+			zookeeper based election
+				zkfc find no other node hold lock on znode, acquire the lock. and then trigger the failover to make local namenode active
+			health monitoring
+				zkfc monitor local namenode state, mark it as unhealthy if name node is unhealthy
+		zookeeper
+			failure detection
+				name node crash, zk session expires and notify other name nodes that failover should be triggered 
+			active name node election
+	HA with QJM
+		stand by name node
+			read edit log from journal node
+		active name node 
+		journal node
+			active node writes modification to edits log on journal node, allow one write per name node
+		data ndoe
+			send block location to active and stand by name node
+			
+2. Manual failover
+DFSHAAdmin -ns <nameserviceId> -transitionToActive <serviceId> -transitionToStandby <serviceId>
+
+webHDFS vs HttpFs
+
+2020年6月30日
+11:25
+
+There are 2 different ways of accessing HDFS over http.
+Using WebHDFS
+http://<active-namenode-server>:<namenode-port>/webhdfs/v1/<file-path>?op=OPEN
+Using HttpFs
+http://<hadoop-httpfs-server>:<httpfs-port>/webhdfs/v1/<file-path>?op=OPEN
+
+WebHDFS:
+Pros:
+	• Built-in with default Hadoop installation
+	• Efficient as load is streamed from each data node
+Cons:
+	• Does not work if high availability is enabled on cluster, Active namenode needs to be specified to use webHdfs
+	
+HttpFs
+Pros:
+	• Works with HA enabled clusters.
+Cons:
+	• Needs to be installed as additional service.
+	• Impacts performance because data is streamed from single node.
+	• Creates single point of failure
+Additional performance implications of webHDFS vs HttpFs
+https://www.linkedin.com/today/post/article/20140717115238-176301000-accessing-hdfs-using-the-webhdf...
+WebHDFS vs HttpFs Major difference between WebHDFS and HttpFs: WebHDFS needs access to all nodes of the cluster and when some data is read it is transmitted from that node directly, whereas in HttpFs, a singe node will act similar to a "gateway" and will be a single point of data transfer to the client node. So, HttpFs could be choked during a large file transfer but the good thing is that we are minimizing the footprint required to access HDFS.
+
+来自 <https://community.cloudera.com/t5/Community-Articles/Comparison-of-HttpFs-and-WebHDFS/ta-p/245562> 
+
+
+
+Erasure code
+
+2020年8月17日
+14:31
+
+两种技术	磁盘利用率	计算开销	网络消耗	恢复效率
+多副本(3副本)	1/3	几乎没有	较低	较高
+纠删码(n+m)	n/(n+m)	高	较高	较低
+
+来自 <https://www.jianshu.com/p/4abf65ad03af> 
+
+
+Delete hdfs file
+
+2021年1月8日
+16:22
+
+Short-circuit read
+
+2021年1月11日
+18:58
+
+So-called "short-circuit" reads bypass the DataNode, allowing a client to read the file directly, as long as the client is co-located with the data. Short-circuit reads provide a substantial performance boost to many applications and help improve HBase random read profile and Impala performance.
+
+来自 <https://docs.cloudera.com/documentation/enterprise/5-3-x/topics/admin_hdfs_short_circuit_reads.html> 
+
+
+
+
+
+
+
+HDFS Shell Command
+
+2021年3月10日
+10:55
+
+hdfs oev
+
+来自 <https://www.google.com/search?q=hdfs+oev&rlz=1C1GCEU_zh-TWSG872SG872&oq=hdfs+oev&aqs=chrome..69i57j0i30.646j0j7&sourceid=chrome&ie=UTF-8> 
+
+
+Block recovery
+
+2021年5月18日
+9:36
+
+块恢复操作主要受两个参数影响：
+
+a）dfs.namenode.replication.work.multiplier.per.iteration  NameNode计算集群每个周期每个DataNode平均恢复的数据块数量；如果该参数配置得太小，则dfs.namenode.replication.max-streams配置得再大没有用；
+
+b）dfs.namenode.replication.max-streams单个DataNode最大同时恢复的块数量，可以间接控制DataNode恢复数据块的带来的网络等压力；
+
+
+
+
+
+
+
+https://blog.csdn.net/liuhong1123/article/details/12914747
+
+NameNode Fsimage editlog
+
+2021年5月23日
+22:16
+
+NameNode 
+Secondeary NameNode：not for HA purpose
+
+https://juejin.cn/post/6844904036836065293
+
+Configuartion
+
+2021年6月16日
+16:53
+
+	1. core-site.xml
+
+<configuration>
+        <!--指定namenode的地址-->
+    <property>
+                <name>fs.defaultFS</name>
+                <value>hdfs://master:9000</value>
+    </property>
+    <!--用来指定使用hadoop时产生文件的存放目录-->
+    <property>
+             <name>hadoop.tmp.dir</name>
+             <value>file:///usr/hadoop/hadoop-2.6.0/tmp</value> 
+    </property>
+        <!--用来设置检查点备份日志的最长时间-->
+        <name>fs.checkpoint.period</name> 
+        <value>3600</value>
+ </configuration>
+
+	2. hdfs-site.xml
+
+<configuration>
+    <!--指定hdfs保存数据的副本数量-->
+    <property>
+            <name>dfs.replication</name>
+            <value>2</value>
+    </property>
+    <!--指定hdfs中namenode的存储位置-->
+    <property>
+             <name>dfs.namenode.name.dir</name> 
+             <value>file:/usr/hadoop/hadoop-2.6.0/tmp/dfs/name</value>
+    </property>
+    <!--指定hdfs中datanode的存储位置-->
+    <property>
+             <name>dfs.datanode.data.dir</name>
+             <value>file:/usr/hadoop/hadoop-2.6.0/tmp/dfs/data</value>
+    </property>
+
+</configuration>
+
+	3. mapred-site.xml
+
+<configuration>
+<!--告诉hadoop以后MR(Map/Reduce)运行在YARN上-->
+        <property>
+              <name>mapreduce.framework.name</name>
+              <value>yarn</value>
+       </property>
+</configuration>
+
+	4. yarn-site.xml
+
+<configuration>
+    <!--nomenodeManager获取数据的方式是shuffle-->
+        <property>
+                <name>yarn.nodemanager.aux-services</name>
+                <value>mapreduce_shuffle</value>
+        </property>
+    <!--指定Yarn的老大(ResourceManager)的地址-->     
+    <property>
+            <name>yarn.resourcemanager.hostname</name>
+            <value>master</value>
+    </property> 
+    <!--Yarn打印工作日志-->    
+    <property>    
+        <name>yarn.log-aggregation-enable</name> 
+        <value>true</value>    
+    </property>
+
+<configuration>
+
+
+https://blog.csdn.net/Mr_LeeHY/article/details/77049800
+
+HDFS Cache
+
+2021年7月8日
+19:57
+
+<property> <name>dfs.datanode.max.locked.memory</name> <value>0</value> <description>
+
+来自 <https://blog.csdn.net/Androidlushangderen/article/details/50818302> 
+
+Fsimage and Editlog
+
+2021年7月11日
+23:28
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+https://blog.csdn.net/chenKFKevin/article/details/61196409
