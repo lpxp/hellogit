@@ -1,0 +1,469 @@
+
+
+2020年5月15日
+11:52
+
+System
+
+Network
+
+2020年5月29日
+9:56
+
+	1. Bond
+	a. Bond 1
+	
+	b. Bond 2
+	
+	c. Bond 4
+	
+	2. 级联 与 堆叠
+	级联是指交换机之间通过双绞线链接，
+	堆叠是在相同厂商的交换机之间使用堆叠模块和堆叠线缆进行连接
+	交换机级联之后，所有交换机不能被统一管理，只能被单独管理
+	交换机堆叠之后，所有交换机能被统一管理
+	交换机级联产生级联延迟 级联瓶颈
+	交换机堆叠之后能够提高较高带宽
+	网络覆盖范围，级联，1台交换机可以覆盖100m，2台可以覆盖200m
+	堆叠，堆叠线缆覆盖只有0.5-1m
+
+	
+
+           堆叠端口不用来进行数据传输。堆叠只是扩大整体接入口的数量 。指定端口进行堆叠，一般是指定连续4个口，最少两个口用来做堆叠。剩余口不使用的话，也不能用来进行数据传输。
+
+
+
+	1. 接入交换机，汇聚交换机， 核心交换机
+	接入交换机直接连接计算机，接入交换机之间可以直接互联
+	汇聚交换机，连接下行是接入交换机，上行可能是核心交换机，也可能没有上行的核心交换机
+	
+	2. 管理平面接入交换机数量计算
+	X = node * 3 （iBmc 1 + 管理平面GE端口数 2 ）/ （接入交换机GE端口数 48 - 堆叠端口数 2）
+	X小于2 取值2保持高可用
+           管理平面汇聚交换机数量计算
+           X = 管理平面接入交换机数*2/(管理平面汇聚交换机10GE端口数 48 - 堆叠端口数 2)
+           
+           业务平面接入交换机数量计算
+           接入汇聚收敛比 3：1
+           X = node * 2 / Math.floor(（接入交换机10GE端口数 48 - 堆叠端口数 2）* 0.75)
+     
+     业务平面汇聚交换机数量计算
+           X = 接入交换机数量 * (接入交换机10GE端口数 48 - 堆叠端口数 2) * 0.25/ 汇聚交换机10GE端口数48
+
+    
+           固定端口交换机端口数有8、12、16、24、48等几种
+           单工，半双工，全双工
+           单工只支持单方面通信，如电视
+           半双工支持双方通信，但是同一时刻只支持数据在同一方向传播，如对讲机
+           支持数据在两个方向同时传输
+	5. LUN (logic unit number), 卷，LBA （logic block address）
+	
+2020年6月8日
+17:14
+
+2019	2020	2021	2022	2023	2024	
+887					1428 （56.62）	10%
+923					1816 （72）	14.5%
+						
+
+2019	2020	2021	2022	2023	2024	
+28.15	32.37	37.22	42.81	49.23	56.62	15%
+						
+
+Kimball
+
+2020年6月11日
+9:39
+
+确定业务过程-》声明粒度-》确定维度-》确定事实
+
+业务过程 
+通常使用行为动词表示 业务过程， 比如“创建订单”
+
+
+主题域
+主题域是同一业务块的数据的集合，	
+并以该主题域内核心业务对象/数据实体的业务名称作为主题域名称，如客户，产品，员工等
+
+
+
+INode
+
+2020年7月22日
+11:11
+
+inode 是 UNIX 操作系统中的一种数据结构，其本质是
+结构体，它包含了与文件系统中各个文件相关的一些重要信息。在 UNIX 中创建文件系统时，同时将会创建大量的 inode 。通常，文件系统磁盘空间中大约百分之一空间分配给了 inode 表
+
+来自 <https://baike.baidu.com/item/inode/16194?fr=aladdin> 
+
+下面的定义仅给出了 inode 中所包含的、UNIX 用户经常使用的一些重要信息：
+	l 文件的字节数
+	l 设备ID(储存文件的设备ID)
+	l 文件拥有者的User ID
+	l 文件的Group ID
+	l 文件的读,写,执行权限
+	l 额外的系统和用户标志位:限制文件的使用和修改来保护文件
+	l 文件的时间戳,共有三个:ctime指inode上一次变动的时间,mtime指文件内容上一次变动的时间,atime指文件上一次打开的时间.
+	l 链接数:有多少文件名指向这个inode(硬连接)
+	l 文件块指针:指向文件数据block的位置
+
+存储
+
+2020年7月22日
+14:49
+
+存储池
+存储节点提供的存储资源的集合，将多个存储节点上的存储资源添加到存储池中，通过存储系统提供分布式存储资源
+
+卷（volume）
+卷是对存储空间的逻辑划分，可以供应用服务器访问，存储系统的卷为精简卷，创建卷时不分配空间，用户写数据时系统按照用户实际使用容量从存储池中动态分配存储资源。
+
+来自 <http://localhost:7890/pages/YZJ0430J/02/YZJ0430J/02/resources/zh-cn_topic_0195774390.html?ft=0&fe=10&hib=4.1.1.2.1&id=ZH-CN_TOPIC_0195774390> 
+
+
+在存储领域有个不成文的规定，只要以IOPS来描述，那么就代表是小I/O（<32KB），以Bandwidth来描述，那就是大I/O（>32KB）。
+
+来自 <https://blog.csdn.net/zhoucengchao/article/details/9974039> 
+
+
+
+
+
+收敛比
+举个例子，假设你有10台服务器，每台服务器通过10GE的接口连接到一个接入交换机，那我们一共就有100G（10×10G=100G）的南向带宽。假设这台交换机还有2个40GE的接口可以用于接入到更高一层的汇聚交换机，那我们一共就有80G（2×40G=80G）的北向带宽。此时，我们得到的收敛比则是1.25：1（100G÷80G=1.25
+
+当然，最理想的收敛比是1：1。但是我们也会注意到，低收敛比的设计意味着选用更高上行端口带宽的设备，这意味着更多的投入；如果在不计成本的情况下，1：1的收敛比是我们都期望能实现的。另外一方面，我们的服务器也不是每时每刻都工作在高负荷下，占用100%的带宽，这意味着即使不是1：1的收敛比，也不是就一定会出现数据报文因拥塞丢包，业务仍可以正常运行。因此，找到这两者之间的平衡，找到最适合的收敛比，就显得十分有必要。
+收敛比反映了一个网络线速转发流量的能力，因此通常我们会把收敛比作为衡量一个高性能网络的因素来考虑。一般在园区网，由于流量压力不大，园区网网络一般都会存在较大的流量收敛；但在数据中心网络，由于其对性能要求高，流量收敛的设计就十分重要
+
+
+来自 <https://support.huawei.com/enterprise/zh/doc/EDOC1100023543?section=j00m> 
+
+
+VRRP
+
+将两台路由器组将一个虚拟路由器，形成主备模式，提高可用性。
+
+Hadoop重启时长
+
+2020年8月13日
+10:46
+
+务名称	重启时长	启动时长	附加说明
+HDFS	10min+x	NameNode：4min+x	x为NameNode元数据加载时长，每千万文件大约耗时2分钟，例如5000万文件x为10min。由于受DataNode数据块上报影响启动时间有一定浮动。
+		DataNode：2min
+		JournalNode：2min
+		Zkfc：2min
+Yarn	5min+x	ResourceManager：3min+x	x为ResourceManager保留任务数恢复时长，每1万保留任务大约需要1分钟
+		NodeManager：2min
+MapReduce	2min+x	JobHistoryServer：2min+x	x为历史任务扫描时长，每10万任务大约2.5min
+Zookeeper	2min+x	quorumpeer：2min+x	x为加载znode节点时长，每100万znode大约1min
+Solr	10min+x	10min+x	x为数据恢复时长，每1万分片大约需要10min，以150实例数为例，每1万分片数据量增加15T，恢复时长大约增加15min。
+Elasticsearch	10min+x	5min+x	x为数据恢复时长，每1万分片大约需要8min。
+Hive	3.5min	HiveServer：3min	-
+		MetaStore：1min30s
+		Webhcat：1min
+		Hive整体服务：3min
+Spark/Spark2x	5min	JobHistory：5min	-
+		SparkResource：5min
+		JDBCServer：5min
+GraphBase	4min	GraphServer：3min	-
+		LoadBalancer：1min
+Flink	1min	FlinkRource：1min	-
+Kafka	2min+x	Broker：1min+x	x为数据恢复时长，单实例20000 partition启动所需时长大约2mins。
+Storm/Streaming	6min	Nimbus：3mins	-
+		UI：1min
+		Supervisor：1min
+		Logviewer：1min
+Redis	1min+x	Redis：1min+x	        1. Redis单节点安装实例个数与CPU核数有关，1min为单实例启动时长。
+			        2. x为数据恢复时长，单实例从RDB备份恢复1GB数据所需时长大约2min。单实例从AOF备份恢复1GB数据所需时长大约1min。
+FTP-Server	1min	FTP-Server：1min	-
+Flume	3min	Flume：2mins	
+		MonitorServer：1min
+
+节点估算
+
+2020年8月19日
+14:49
+
+
+分级元数据
+
+2020年8月27日
+10:05
+
+https://blog.csdn.net/androidlushangderen/article/details/107095165#comments_12915701
+
+Spark 官方介绍
+
+2020年8月27日
+10:38
+
+http://spark.apache.org/docs/latest/index.html
+
+实时数据仓库
+
+2020年8月27日
+10:59
+
+数据源:直接配置为kafka实时消息传输；
+数据明细层：一般也会选择kafka作为数据存储，如果是这层做成大宽表的话，可以选择druid，或者hbase
+数据汇总层：对数据进行高度汇总后的数据，这层一般也会选择kafka作为数据存储，这样需要保证各层级的数据通过kafka能够产生依赖。
+应用层：应用层根据不同的业务类型选用不同的数据存储，如果结果需要能够快速搜索，可以选用es，如果结果需要进行多维数据统计分析，可以选用druid，如果结果数据量不是很大的话，最好选用mysql，相对来说，mysql的稳定性要好一点。
+维度存储：维度如果是稳定并且数据量不大的情况下可以选择mysql，但是如果维度经常变动或者字段经常增加的话，最好选用hbase进行存储。
+
+实时数仓模型图
+
+
+作者：afansdie
+链接：https://www.jianshu.com/p/d4b342141c3b
+来源：简书
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+
+
+
+美团实时数仓
+
+
+
+https://www.jianshu.com/p/1f66be648b02
+
+数仓模型
+
+2020年9月2日
+22:03
+
+
+
+在我们的数据仓库中，除了各个主题域下的维度模型，还存在一些宽表模型。所谓宽表模型，是基于维度模型的扩展，采用退化维度的方式，将不同维度的度量放入数据表的不同的列中；它更易于理解，具有更高的查询效率；易于模型扩展
+
+来自 <http://lxw1234.com/archives/2018/01/890.htm> 
+
+
+ODS  -> DWD  -> DWS  -> ADS
+
+http://lxw1234.com/archives/2018/01/890.htm
+
+
+
+数据仓库数据模型设计的先后次序
+• 概念模型设计（业务模型）：界定系统边界；确定主要的主题域及其内容；
+• 逻辑模型设计：维度建模方法（事实表、维度表）；以星型和雪花型来组织数据；
+• 物理模型设计：将数据仓库的逻辑模型物理化到数据库的过程；
+
+来自 <http://lxw1234.com/archives/2018/01/890.htm> 
+
+
+
+Zookeeper
+
+2020年9月22日
+19:23
+
+ZNode
+
+Persisent ZNode
+Empheral znode
+Persisent_sequential ZNode
+
+Watch
+
+
+
+Three Roles
+Leader
+处理zookeeper状态变更请求。将请求进行排序和编号，以保证集群内部消息处理的FIFO。
+
+Follower
+相应本服务器上的读请求，另外还要处理Leader的提议，并在leader提交该提议时在本地也进行提交
+ 
+Observer
+如果zookeeper的集群负载很高，或者客户端多到跨机房，可以设置一些observer服务器，以提高读取的吞吐量。
+observer不是法定人数，不参与选举也不响应提议。
+不需要将事务持久化到磁盘，一旦被重启，需要从leader重新同步整个名字空间
+
+
+
+MSTP专线
+
+2020年11月25日
+10:44
+
+根据光传送速率及SDH处理速率，一般MSTP的传送时延为t=(5us*k+250us*n)*2+1ms。其中K表示AB两端距离用单位为KM,n表示中间经过的网元数，1ms表示收发两端设备对以太网封装和解封装时延。根据经验公式可知，在传送距离在100KM以内，MSTP时延主要影响为经过的网元数量，即网络越复杂，SDH路径进过的网元越多，时延越大；而传送距离大于500KM的长途网中，时延主要与距离有关。所以，本地网内时延较大，一般需要通过优化SDH路径解决，而长途一般需要通过选走直达路由解决
+
+来自 <https://blog.csdn.net/weixin_33830216/article/details/92534570> 
+
+
+Hudi
+
+2020年12月16日
+11:20
+
+https://www.cnblogs.com/leesf456/p/12710118.html
+
+
+Table Types & QueriesPermalink
+Hudi table types define how data is indexed & laid out on the DFS and how the above primitives and timeline activities are implemented on top of such organization (i.e how data is written). In turn, query types define how the underlying data is exposed to the queries (i.e how data is read).
+Table Type	Supported Query types
+Copy On Write	Snapshot Queries + Incremental Queries
+Merge On Read	Snapshot Queries + Incremental Queries + Read Optimized Queries
+
+来自 <https://hudi.apache.org/docs/concepts.html#copy-on-write-table> 
+
+Table TypesPermalink
+Hudi supports the following table types.
+	• Copy On Write : Stores data using exclusively columnar file formats (e.g parquet). Updates simply version & rewrite the files by performing a synchronous merge during write.
+	• Merge On Read : Stores data using a combination of columnar (e.g parquet) + row based (e.g avro) file formats. Updates are logged to delta files & later compacted to produce new versions of columnar files synchronously or asynchronously.
+Following table summarizes the trade-offs between these two table types
+
+rade-off	CopyOnWrite	MergeOnRead
+Data Latency	Higher	Lower
+Update cost (I/O)	Higher (rewrite entire parquet)	Lower (append to delta log)
+Parquet File Size	Smaller (high update(I/0) cost)	Larger (low update cost)
+Write Amplification	Higher	Lower (depending on compaction strategy)
+
+来自 <https://hudi.apache.org/docs/concepts.html#copy-on-write-table> 
+
+
+
+Sentry
+
+2020年12月21日
+15:31
+
+
+
+
+
+
+
+
+
+https://community.cloudera.com/t5/Support-Questions/difference-between-Ranger-and-sentry/td-p/238281
+
+Ranger
+
+2020年12月21日
+15:32
+
+https://support.huaweicloud.com/intl/en-us/usermanual-mrs/mrs_01_0766.html
+
+https://community.cloudera.com/t5/Support-Questions/difference-between-Ranger-and-sentry/td-p/238281
+
+
+
+When a Ranger plugin for a component (like HBase or HDFS) is activated, Ranger will be in full control of any access. There is a two-way communication between the Ranger plugin and Ranger (Admin) Policy Server (RPS):
+1. Plugins to RPS: Ranger plugins regularly call the RPS to see if new policies were defined in the Ranger Administration Portal (RAP). Generally allow for 30 sec. for a policy to be updated.
+2. RPS to components: The RPS queries the component for meta objects that live on the component to base policies upon (this provides the autocomplete and dropdown list when defining policies.)
+The first communication channel (Plugins to RPS) is essential for the plugin to function whereas the second (RPS to components) is optional. It would still be possible to define and enforce policies if the second does not work, but you will not have autocomplete during policy definition.
+
+来自 <https://docs.cloudera.com/HDPDocuments/HDP2/HDP-2.6.5/bk_security/content/ad_integration_ranger_architecture.html> 
+
+
+
+Prometheus
+
+2020年12月21日
+18:30
+
+
+
+Loki vs Elastic search
+
+
+
+Loki
+
+2020年12月21日
+18:34
+
+Loki vs Elastic search
+
+
+
+
+
+
+Kudu
+
+2020年12月21日
+19:54
+
+https://www.jianshu.com/p/83290cd817ac
+
+
+
+
+
+磁盘状况 iostat
+
+2020年12月29日
+9:08
+
+Iostat -d -k 1 10
+
+
+
+http://blog.chinaunix.net/uid-23284114-id-3549663.html
+
+oozie
+
+2021年1月7日
+15:37
+
+https://blog.csdn.net/Abysscarry/article/details/81784179
+
+
+
+Alluxio
+
+2021年1月11日
+22:06
+
+Hive presto with Alluxio
+
+https://www.cnblogs.com/daemonyue/archive/2004/01/13/12979054.html
+
+Spark with Alluxio
+
+
+
+
+具体案例
+
+https://www.infoq.cn/article/q58xagobiioimqeem-a9
+
+感谢你的详尽的测试报告。 有几个问题想了解一下你的测试环境的具体setup：
+	• Presto是否和HDFS共置部署
+	• Alluxio是否和Presto共置部署。
+我们认为现如果是HDFS已经和Presto共置部署，这个不是Alluxio的目标场景（如果主要目的是为了提高Presto的查询性能）。就性能而言。Alluxio更多是当数据源在远端时候，用来给Presto提供数据的本地性。
+另外一个可能可以考察的点是HDFS是否存在作业或者namenode过载。如果在这种情形下， 部署Alluxio也可能带来性能的提升。
+
+来自 <https://github.com/Alluxio/alluxio/issues/10566> 
+
+Atlas
+
+2021年1月21日
+11:53
+
+Ozone
+
+2021年4月14日
+10:20
+
+Object store
+https://ozone.apache.org/docs/1.0.0/concept/overview.html
+
+Kerberos 认证
+
+2021年8月6日
+16:59
+
+
+
+时序图：
+
+来自 <https://seevae.github.io/2020/09/12/%E8%AF%A6%E8%A7%A3kerberos%E8%AE%A4%E8%AF%81%E6%B5%81%E7%A8%8B/> 
+
+
