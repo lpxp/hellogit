@@ -1,0 +1,463 @@
+YARN
+
+2020年5月13日
+14:32
+
+
+
+
+
+resource manager
+	appliction manager
+	responsible for accepting the job submission, negotiating the first container for executing the appliation sepcific ApplicationMaster and provides the service for restarting the ApplicationMaster container on failure.
+	
+	Scheduler 
+	responsible for allocating resources to running applications. It performs its scheduling function based on the resource requirements of the applications.
+	
+	Resource container
+	abstract notion which incorporates elements like cpu, memory, network, etc.
+	
+application master
+	Per application, a framework specific library, negotiate resources from resource manager for the application, working with node manager to execute and monitor the tasks.
+	
+node manager
+Per machine framework agent who is responsible for containers, monitoring their resource usage (cpu, memory, disk, network), reporting the same to the resource manager/scheduler.
+
+command
+
+2020年6月2日
+17:47
+
+Yarn logs -applicationId <applicationName> > log.txt
+
+
+
+
+Resource Manager HA
+
+2020年6月9日
+16:44
+
+Resource Manager HA
+	1. Active Resource Manager and Stand by Resource Manager, ZooKeeper
+	2. Active Resource Manager writes its state to Zookeeper
+	3. Fail-over if the active RM fails
+
+Manual Failover
+	1. Yarn rmadmin
+
+Automatic failover
+
+
+Scenario
+When there are multiple RMs, the configuration used by clients and nodes is expected to list all the RMs. Clients, Ams and RMs try connecting to the RMs in a round-robin fashion until they hit the active RM. If the active goes down, they resume round-robin polling until they hit the "new" Active 
+
+
+Node Label
+
+2020年6月9日
+17:14
+
+Node Label is a way to group nodes with similar characteristics and applications can specify where to run.
+
+
+
+
+MapRed-site.xml
+
+2020年6月16日
+10:49
+
+name	value	Description
+hadoop.job.history.location	 	job历史文件保存路径，无可配置参数，也不用写在配置文件里，默认在logs的history文件夹下。
+hadoop.job.history.user.location	 	用户历史文件存放位置
+io.sort.factor	30	这里处理流合并时的文件排序数，我理解为排序时打开的文件数
+io.sort.mb	600	排序所使用的内存数量，单位兆，默认1，我记得是不能超过mapred.child.java.opt设置，否则会OOM
+mapred.job.tracker	hadoopmaster:9001	连接jobtrack服务器的配置项，默认不写是local，map数1，reduce数1
+mapred.job.tracker.http.address	0.0.0.0:50030	jobtracker的tracker页面服务监听地址
+mapred.job.tracker.handler.count	15	jobtracker服务的线程数
+mapred.task.tracker.report.address	127.0.0.1:0	tasktracker监听的服务器，无需配置，且官方不建议自行修改
+mapred.local.dir	/data1/hdfs/mapred/local,	mapred做本地计算所使用的文件夹，可以配置多块硬盘，逗号分隔
+	/data2/hdfs/mapred/local,
+	...
+mapred.system.dir	/data1/hdfs/mapred/system,	mapred存放控制文件所使用的文件夹，可配置多块硬盘，逗号分隔。
+	/data2/hdfs/mapred/system,
+	...
+mapred.temp.dir	/data1/hdfs/mapred/temp,	mapred共享的临时文件夹路径，解释同上。
+	/data2/hdfs/mapred/temp,
+	...
+mapred.local.dir.minspacestart	1073741824	本地运算文件夹剩余空间低于该值则不在本地做计算。字节配置，默认0
+mapred.local.dir.minspacekill	1073741824	本地计算文件夹剩余空间低于该值则不再申请新的任务，字节数，默认0
+mapred.tasktracker.expiry.interval	60000	TT在这个时间内没有发送心跳，则认为TT已经挂了。单位毫秒
+mapred.map.tasks	2	默认每个job所使用的map数，意思是假设设置dfs块大小为64M，需要排序一个60M的文件，也会开启2个map线程，当jobtracker设置为本地是不起作用。
+mapred.reduce.tasks	1	解释同上
+mapred.jobtracker.restart.recover	true | false	重启时开启任务恢复，默认false
+mapred.jobtracker.taskScheduler	org.apache.hadoop.mapred.	重要的东西，开启任务管理器，不设置的话，hadoop默认是FIFO调度器，其他可以使用公平和计算能力调度器
+	CapacityTaskScheduler
+	
+	org.apache.hadoop.mapred.
+	JobQueueTaskScheduler
+	
+	org.apache.hadoop.mapred.
+	FairScheduler
+mapred.reduce.parallel.copies	10	reduce在shuffle阶段使用的并行复制数，默认5
+mapred.child.java.opts	-Xmx2048m	每个TT子进程所使用的虚拟机内存大小
+	-Djava.library.path=
+	/opt/hadoopgpl/native/
+	Linux-amd64-64
+tasktracker.http.threads	50	TT用来跟踪task任务的http server的线程数
+mapred.task.tracker.http.address	0.0.0.0:50060	TT默认监听的httpIP和端口，默认可以不写。端口写0则随机使用。
+mapred.output.compress	true | false	任务结果采用压缩输出，默认false，建议false
+mapred.output.compression.codec	org.apache.hadoop.io.	输出结果所使用的编解码器，也可以用gz或者bzip2或者lzo或者snappy等
+	compress.DefaultCodec
+mapred.compress.map.output	true | false	map输出结果在进行网络交换前是否以压缩格式输出，默认false，建议true，可以减小带宽占用，代价是会慢一些。
+mapred.map.output.compression.codec	com.hadoop.compression.	map阶段压缩输出所使用的编解码器
+	lzo.LzoCodec
+map.sort.class	org.apache.hadoop.util.	map输出排序所使用的算法，默认快排。
+	QuickSort
+mapred.hosts	conf/mhost.allow	允许连接JT的TT服务器列表，空值全部允许
+mapred.hosts.exclude	conf/mhost.deny	禁止连接JT的TT列表，节点摘除是很有作用。
+mapred.queue.names	ETL,rush,default	配合调度器使用的队列名列表，逗号分隔
+mapred.tasktracker.map.	12	每服务器允许启动的最大map槽位数。
+tasks.maximum
+mapred.tasktracker.reduce.	6	每服务器允许启动的最大reduce槽位数
+tasks.maximum
+
+来自 <https://blog.csdn.net/xiaoshunzi111/article/details/51221497> 
+
+MR
+
+2020年7月2日
+21:36
+
+任务提交
+	1. 本地提交
+	写mapper，reduce人， main -- job.waitForCompletion(true);
+	2. hadoop jar wc.jar com.nasuf.hadoop.mr.WCRunner
+	3. 代码
+	conf.set("mapreduce.framework.name", "yarn");
+	conf.set("yarn.resourcemanager.hostname", "hdcluster01");
+	conf.set("yarn.nodemanager.aux-services", "mapreduce_shuffle");
+	conf.set("hadoop.tmp.dir", "/home/parallels/app/hadoop-2.4.1/data/");
+	
+	
+	
+https://www.cnblogs.com/kocdaniel/p/11637888.html
+Details：
+Map Phase
+	1. Read
+	MapTask invoke mapper.map(),  it invokes inputFormat() first， it calls createRecoderReader(), it parse block file and convert it to (k,v).  will Parse Inputsplit and turn it to (k,v)
+	
+	2. Map
+     Map Function , convert input (k,v) to another (k,v)
+
+	3. Collect 
+     invoke outputCollector.collect(), it partition (k,v) and write the data to the circular buffer. The data includes meta data and business data.
+
+	4. Spill
+	When the circular buffer is full, mr will partition and sort the kv, and then write data to files, and then merge sort data in the files at last.
+	There is probably a combine step before merge sort, it combines the data in each output file created by maptasks, which reduces the data mount to be transimtted 
+	
+
+Shuffle phase
+
+1. MapTask收集map()方法输出的kv对，放到环形缓冲区中
+2. 从环形缓冲区不断溢出到本地磁盘文件，可能会溢出多个文件
+3. 多个溢出文件会被合并成大的溢出文件
+4. 在溢出过程及合并的过程中，都要调用Partitioner进行分区和针对key进行排序
+5. ReduceTask根据自己的分区号，去各个MapTask机器上取相应的结果分区数据
+6. ReduceTask将取到的来自同一个分区不同MapTask的结果文件进行归并排序
+7. 合并成大文件后，shuffle过程也就结束了，进入reduce方法
+
+来自 <https://www.cnblogs.com/kocdaniel/p/11637888.html> 
+
+maptask收集map()方法输出的kv对，放到环形缓冲区
+从环形缓冲区不断溢出到本地磁盘文件，可能会溢出多个文件
+多个溢出文件会被合并成大的溢出文件
+在溢出过程及合并的过程中，都要调用Partitioner进行分区和针对key进行排序
+ReduceTask根据自己的分区号，去各个MapTask机器上取相应的结果分区数据
+ReduceTask将取到的来自同一个分区不同MapTask的结果文件进行归并排序
+
+Map 快结束的时候，,会调用partitioner接口，对map产生的（k,v）进行reduce分区选择，然后通过http通信发送给对应的reduce进程。这样不管map位于哪个节点，只要key相同，都会发送到相同的reduce进程。reduce进程对收到（key,value）进行排序和合并，相同的可以放在一起，组成一个（key,value集合）传递给reduce执行。
+
+默认的partitioner 使用key对 reduce任务数取模，相同的key一定会落在相同的reduce任务id上
+
+
+Reduce phase
+	1. Copy
+	
+	Reduce task copy data over which is generated by map task , to memory or disk.
+	
+	2. Merge
+	Copy data in the meantime 2 threads combine the files in memory or disks.
+	
+	3. Sort
+     merge sort data in all files generated by map tasks.
+
+	4. Reduce
+	Reduce() write result data to HDFS
+
+
+
+
+
+
+
+Yarn mechanism
+
+
+
+
+MR1
+
+2020年7月2日
+21:36
+
+任务提交
+	1. 本地提交
+	写mapper，reduce人， main -- job.waitForCompletion(true);
+	2. hadoop jar wc.jar com.nasuf.hadoop.mr.WCRunner
+	3. 代码
+	conf.set("mapreduce.framework.name", "yarn");
+	conf.set("yarn.resourcemanager.hostname", "hdcluster01");
+	conf.set("yarn.nodemanager.aux-services", "mapreduce_shuffle");
+	conf.set("hadoop.tmp.dir", "/home/parallels/app/hadoop-2.4.1/data/");
+	
+	
+	
+https://www.cnblogs.com/kocdaniel/p/11637888.html
+Details：
+
+
+1. Map:数据输入,做初步的处理,输出形式的中间结果；
+2. Shuffle:按照partition、key对中间结果进行排序合并,输出给reduce线程；
+3. Reduce:对相同key的输入进行最终的处理,并将结果写入到文件中
+
+
+Map
+
+
+Input
+File (InputFormat的文件切分算法和host选择算法) -> InputSplit(blocks) -> (k,v)
+
+Map
+
+
+Partition
+(k,v) -> (k,v,partition) -> ring buffer
+
+Spill
+Ringbuffer -> sort(partition,key) ->
+
+
+Combine (optional)
+(k,v) -> (k,Func([v1,v2])) (Func和reduce执行的计算规则一致)
+两种场景执行combine：
+	1. MAP 输出数据分区排序完成后，在写入文件之前执行一次combine方案
+	2. Ringbuffer spill 多个文件，多个文件合并之后，还需要执行combine，多个文件排序聚合
+
+
+Merge
+Ringbuffer -> [file1, file2,…,filen] -> merge single file
+
+
+Reduce
+
+
+
+
+
+
+来自 <https://matt33.com/2016/03/02/hadoop-shuffle/> 
+
+Copy 
+reduce任务通过http方式从磁盘上去取对应的map端生成文件，然后放到ringbuffer
+
+Merge 
+内存数据达到一定阀值，溢写到硬盘，需要进行merge成一个文件。 多个文件也需要最终merge一个文件。
+
+Reducer 
+merge最终生一个文件，存在磁盘上。这样reducer的输入文件已定，整个shuffle结束。reducer执行，把结果放到hdfs上。
+
+
+Yarn mechanism
+
+
+
+
+
+
+
+
+Scheduler
+
+2020年7月17日
+10:10
+
+Capacity Scheduler
+HOD Scheduler
+Fair Scheduler
+
+Capacity Scheduler
+
+2020年7月17日
+10:10
+
+Fair Scheduler
+
+2020年7月17日
+10:10
+
+HOD Scheduler
+
+2020年7月17日
+10:10
+
+Driver/Executor 资源调度
+
+2020年8月22日
+20:11
+
+Driver 资源调度
+将Driver随机的分配到空闲的Worker去
+
+
+
+Executor资源调度
+Spread out 分配策略，round-robin的方式遍历集群所有可用worker，分配worker资源，启动executor
+
+
+
+
+
+
+
+MR调优
+
+2020年8月27日
+17:26
+
+https://blog.csdn.net/wangpei1949/article/details/89277490
+优化从两方面来考虑
+	1. 执行时间
+	2. 资源使用
+
+	• 执行时间
+	MR job执行时间 T则可表示为：
+	
+	
+	
+
+	Map任务的执行时间与Map任务的输入记录个数、输出记录个数成正比
+	
+	
+
+	
+	
+ 三个方面来减少Hadoop的执行时间：
+	•  GC时间 
+	•  尽量避免Mapper和Reducer的数据倾斜
+	•  优化算法
+	
+	• 资源使用
+  MR job占用内存资源
+
+
+三个方面降低资源使用
+	• 减少Map或Reduce任务个数
+	• 减少Map或Reduce任务容器大小
+	• 优化job的执行时间
+
+实施：
+
+Mapper GC
+combiner减少数据传输，
+
+
+Reducer GC
+算法减少引用的数据
+
+
+数据倾斜
+CombineFileInputFormat可以帮助解决Mapper中的数据倾斜问题
+
+Partition能够处理Reducer中的数据倾斜问题
+
+
+
+
+
+
+MR Job submit
+
+2020年11月12日
+10:45
+
+
+
+Yarn Resource Management
+
+2021年4月8日
+10:48
+
+YARN containers are built on top of Linux "cgroups". These "cgroups" are used to put soft limits on CPU, but not on RAM...
+Therefore YARN uses a clumsy workaround: it periodically checks how much RAM each container uses, and kills brutally anything that got over quota. So you lose the execution logs, and only get that dreadful message you have seen.
+
+来自 <https://stackoverflow.com/questions/41226242/distcp-container-is-running-beyond-physical-memory-limits> 
+
+
+
+
+
+
+
+
+
+Control #container
+
+2021年8月18日
+16:45
+
+Important YARN properties (yarn-site.xml)
+ 
+	• yarn.nodemanager.resource.memory-mb – specifies the amount of memory per worker node allocated for YARN application usage
+		In yarn-site.xml I would set:
+		 
+		<name>yarn.nodemanager.resource.memory-mb</name>
+		<value>40960</value>
+		This means on each node we'll assign 40GB RAM for YARN to use, remember to leave memory for the OS.
+		 
+	• yarn.scheduler.minimum-allocation-mb – the minimum size container that YARN will allocate; a container request for less memory will be bumped up to this minimum
+		<name>yarn.scheduler.minimum-allocation-mb</name>
+		<value>2048</value>
+		 
+		We want to allow for a maximum of 20 Containers, and thus need (40 GB total RAM) / (20 # of Containers) = 2 GB minimum per container:
+	• yarn.nodemanager.resource.cpu-vcores – the number of “virtual” cores per worker node; not always set in the YARN configuration; defaults to the number of cores discovered on worker nodes
+
+来自 <https://communities.actian.com/s/article/Configuring-YARN-Container-Resources> 
+
+
+
+
+The next calculation is to determine the maximum number of containers allowed per node. The following formula can be used:
+# of containers = min (2*CORES, 1.8*DISKS, (Total available RAM) / MIN_CONTAINER_SIZE)
+
+来自 <https://docs.cloudera.com/HDPDocuments/HDP2/HDP-2.0.6.0/bk_installing_manually_book/content/rpm-chap1-11.html> 
+
+
+
+yarn.nodemanager.resource.cpu-vcores:
+the total available cores for all containers.
+"Number of CPU cores that can be allocated for containers."
+
+yarn.scheduler.maximum-allocation-vcores:
+the maximum number of cores that a container can request.
+"The maximum allocation for every container request at the RM, in terms of virtual CPU cores. Requests higher than this won't take effect, and will get capped to this value."
+
+来自 <https://community.cloudera.com/t5/Support-Questions/yarn-nodemanager-resource-cpu-vcores-and-yarn-scheduler/td-p/31098> 
+
+
+
+
+
+
