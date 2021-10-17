@@ -1,0 +1,331 @@
+Basic
+
+2020年6月15日
+17:31
+
+database：在 HDFS 中表现为hive-site.xml 里${hive.metastore.warehouse.dir}目录下一个文件夹 
+table：在 HDFS 中表现所属 database 目录下一个文件夹
+external table：与 table 类似，不过其数据存放位置可以指定任意 HDFS 目录路径
+partition：在 HDFS 中表现为 table 目录下的子目录 /user/hive/warehouse/order_partition/event_month=2014-05, table order_partition下partition 'event_month=2014-05', /user/hive/warehouse/order_partition/event_month=2014-05/type=userinfo
+bucket：在 HDFS 中表现为同一个表目录或者分区目录下根据某个字段的值进行 hash 散 列之后的多个文件。表或者分区可以进一步分桶.
+/user/hive/warehouse/order_partition
+四个bucket
+000_0
+001_0
+002_0
+003_0
+
+set hive.enforce.bucketing = true;
+
+view：与传统数据库类似，只读，基于基本表创建
+
+
+
+
+
+Backup & Restore
+
+2020年5月14日
+18:47
+
+Backup & Restore
+
+	1. Approach 1
+	Backup hive meta store (mysql/postgresql) to backup server 2. Hdfs Snapshot 2. Distcp all hdfs file
+	1) Stop Hive on the target cluster
+	2) Distcp all the necessary files on HDFS to the secondary cluster.
+	3) Take a SQL dump of your Hive Metastore (which is in MySQL or Postgres).
+	4) Restore the SQL dump on your target cluster.
+	5) Use the Hive Metatool "-updateLocation" command on the target cluster to change the Metastore URIs
+	https://cwiki.apache.org/confluence/display/Hive/Hive+MetaTool
+	修改 metastore 内容库的集群信息（重要）
+	因为夸集群，hdfs访问的名字可能变化了，所以需要修改下hive库中的表DBS和SDS内容，除非你的集群名字或者HA的名字跟之前的一致这个就不用修改了
+	
+	来自 <https://blog.csdn.net/jin6872115/article/details/83268689?utm_medium=distribute.pc_aggpage_search_result.none-task-blog-2~all~sobaiduend~default-3-83268689.nonecase&utm_term=hive%E6%95%B0%E6%8D%AE%E8%BF%81%E7%A7%BB%E6%96%B9%E6%A1%88&spm=1000.2123.3001.4430> 
+	
+	
+	6) Start Hive on the target cluster
+	To make the process easier, assuming this is a one-time thing, I suggest that you copy the entire Metastore rather than trying to pick and choose certain tables. While being selective is possible, it will add a bit more complexity to your process.
+	
+	来自 <https://community.cloudera.com/t5/Support-Questions/how-to-backup-hive-tables/td-p/170114> 
+	
+	
+	2. Approach 2
+	EXPORT TABLE tablename [PARTITION (part_column="value"[, ...])] 
+  TO 'export_target_path' [ FOR replication('eventid') ]
+	
+	来自 <https://cwiki.apache.org/confluence/display/Hive/LanguageManual+ImportExport> 
+	
+	
+	
+	IMPORT [[EXTERNAL] TABLE new_or_original_tablename [PARTITION (part_column="value"[, ...])]] 
+  FROM 'source_path' 
+  [LOCATION 'import_target_path']
+	
+	
+	Eg. 
+		1. 进入hive，Export TABLE tabletest to '/user/hive/exp/emp/
+		2. Move the output folder to another hadoop
+		3. Import TABLE table_test1 FROM '/user/hive/exp/emp/
+	
+	https://blog.csdn.net/Realoyou/article/details/79200589
+	
+	3. Approach 3
+	• 集群内表和数据复制
+		○ 小数据量进行复制
+		复制表SQL：
+		CREATE TABLE bigdata17_new like bigdata17_old;
+		复制数据sql：
+		insert overwrite table bigdata17_new partition(dt) select * from bigdata17_old;
+		
+		来自 <https://blog.csdn.net/yangbosos/article/details/88687596> 
+	
+		○ 超过1TB进行复制
+		复制表SQL：
+		CREATE TABLE bigdata17_new like bigdata17_old;
+		拷贝数据
+		hadoop fs -cp /user/warehouse/bigdata17.db/bigdata17_old/* /user/warehouse/bigdata17.db/bigdata17_new/
+		修复元数据
+		MSCK REPAIR TABLE new_table;
+		
+		来自 <https://blog.csdn.net/yangbosos/article/details/88687596> 
+	
+	• 跨集群表和数据复制
+	
+	4. Approach 4
+	INSERT OVERWRITE LOCAL DIRECTORY '/tmp/local_out' SELECT a.* FROM pokes a; 
+	将查询结果输出至本地目录
+	
+	来自 <https://www.cnblogs.com/jingyunyb/p/3401303.html> 
+	
+	加载数据到表中 
+	LOAD DATA LOCAL INPATH 'ml-data/u.data' 
+	OVERWRITE INTO TABLE u_data; 
+	
+	
+
+Configuration
+
+2020年5月15日
+16:35
+
+Hive-site.xml
+hive.metastore.uris    thrift://<n.n.n.n>:9083      hive元数据uri
+hive.exec.scratchdir    HDFS路径，用于存储不同 map/reduce 阶段的执行计划和这些阶段的中间输出结果
+
+
+database：在 HDFS 中表现为hive-site.xml 里${hive.metastore.warehouse.dir}目录下一个文件夹 
+table：在 HDFS 中表现所属 database 目录下一个文件夹
+external table：与 table 类似，不过其数据存放位置可以指定任意 HDFS 目录路径
+partition：在 HDFS 中表现为 table 目录下的子目录
+bucket：在 HDFS 中表现为同一个表目录或者分区目录下根据某个字段的值进行 hash 散 列之后的多个文件
+view：与传统数据库类似，只读，基于基本表创建
+
+
+
+
+
+
+MetaStore
+
+2020年6月3日
+21:36
+
+Data content
+Hive-site.xml
+Hive.metastore.warehouse.dir - default database location
+
+
+修改表数据的存储位置
+alter table TABLE_NAME set location "hdfs://cdh01:8020/user/hive/warehouse/u_user";
+
+来自 <https://www.cnblogs.com/daemonyue/archive/2004/01/13/12979054.html> 
+
+
+
+
+
+
+
+Architecture
+
+2020年7月5日
+22:15
+
+
+
+组件
+
+2020年7月29日
+20:09
+
+MetaStore
+HiveServer
+
+性能优化
+
+2020年8月27日
+11:37
+
+https://www.jianshu.com/p/5baa1631e97c
+
+
+
+http://lxw1234.com/archives/2015/06/317.htm
+
+控制Map reduce个数
+
+2021年3月25日
+10:53
+
+http://lxw1234.com/archives/2015/04/15.htm
+
+Join的机制
+
+2021年3月25日
+10:54
+
+http://lxw1234.com/archives/2015/06/313.htm
+
+Hive SQL是不是触发MR
+
+2021年3月25日
+15:59
+
+In general, any sort of aggregation, such as min/max/count is going to require a MapReduce job. This isn't going to explain everything for you, probably.
+Hive, in the style of many RDBMS, has an EXPLAIN keyword that will outline how your Hive query gets translated into MapReduce jobs. Try running explain on both your example queries and see what it is trying to do behind the scenes.
+
+来自 <https://stackoverflow.com/questions/7466454/how-does-hive-decide-when-to-use-map-reduce-and-when-not-to> 
+
+Sql
+
+2020年11月18日
+18:19
+
+查看hive建表语句：show create table tablename;
+查看hive表结构：describe  tablename; 简写：desc tablename;
+
+来自 <https://www.cnblogs.com/fillPv/p/5532212.html> 
+
+
+Is snappy compressed parquet is splittable?
+
+http://boristyukin.com/is-snappy-compressed-parquet-file-splittable/
+
+Tez
+
+2020年12月21日
+20:08
+
+https://www.cloudera.com/products/open-source/apache-hadoop/apache-tez.html
+
+
+
+MapReduce on YARN
+
+2021年1月12日
+22:15
+
+
+
+
+
+https://blog.csdn.net/dingguanyi/article/details/78308593?utm_medium=distribute.pc_relevant_t0.none-task-blog-BlogCommendFromMachineLearnPai2-1.control&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-BlogCommendFromMachineLearnPai2-1.control
+
+
+
+MapReduce on YARN 运行原理
+
+
+https://blog.csdn.net/lanlianhua_luffy/article/details/110594261
+
+
+
+2021年1月12日
+22:17
+
+https://blog.csdn.net/lanlianhua_luffy/article/details/110594261
+
+Small files in Hive
+
+2021年1月27日
+14:36
+
+
+ALTER TABLE mydb.mytable CONCATENATE;
+hive.merge.tezfiles=true
+hive.merge.mapfiles=true
+hive.merge.size.per.task=256000000
+hive.merge.smallfiles.avgsize=16000000
+
+
+来自 <https://community.cloudera.com/t5/Support-Questions/Hive-CONCATENATE-not-always-merging-all-small-files/td-p/193063> 
+
+
+set hive.merge.tezfiles=true;
+set hive.merge.mapfiles=true;
+set hive.merge.mapredfiles=true;
+set hive.merge.size.per.task=128000000;
+set hive.merge.smallfiles.avgsize=128000000;
+
+CREATE TABLE new_table LIKE old_table;
+INSERT INTO new_table select * from old_table;
+
+
+ALTER TABLE table_name [PARTITION (partition_key = 'partition_value')] CONCATENATE;
+
+来自 <https://stackoverflow.com/questions/57950721/how-to-merge-small-files-created-by-hive-while-inserting-data-into-buckets> 
+
+
+
+合并hive/hdfs小文件
+
+https://www.cnblogs.com/linn/p/10221108.html
+
+Update hive meta database location and meta table location
+
+2021年3月10日
+15:40
+
+在计算节点：
+
+查看密码：cat /var/lib/cloudera-scm-server-db/data/generated_password.txt
+
+输入密码：psql -U cloudera-scm -p 7432 -h localhost -d postgres 回车 输入查询到的密码
+
+选择数据库：\c hive
+
+	1. 修改元数据库的location：
+select * from "DBS";
+update "DBS" set "DB_LOCATION_URI"=REPLACE("DB_LOCATION_URI",'hdfs://myha/user/hive/warehouse/cdh.db','hdfs://mete.storage.huawei.com/user/hive/warehouse/cdh.db');
+
+注：hdfs://myha/user/hive/warehouse/cdh.db 为源路径
+hdfs://mete.storage.huawei.com/user/hive/warehouse/cdh.db 为目标路径
+
+	2. 修改表的location：
+select * from "SDS";
+update "SDS" set "LOCATION"=REPLACE("LOCATION",'hdfs://myha/user/hive/warehouse/','hdfs://mete.storage.huawei.com/user/hive/warehouse/');
+
+注：hdfs://myha/user/hive/warehouse/ 为源路径
+hdfs://mete.storage.huawei.com/user/hive/warehouse/ 为目标路径
+
+Count(*)查数据为零，但表有数据
+
+2021年3月24日
+16:39
+
+set hive.compute.query.using.stats=false;
+
+来自 <https://blog.csdn.net/youhaitao_do/article/details/110377980?utm_term=hive%E7%BC%93%E5%AD%98%E7%BB%93%E6%9E%9C&utm_medium=distribute.pc_aggpage_search_result.none-task-blog-2~all~sobaiduweb~default-4-110377980&spm=3001.4430> 
+
+
+
+
+
+
+Hive parquet table
+
+2021年6月3日
+17:03
+
+create table test (id Int, name String, sex String, age Int, country String) partitioned by(date_str String) stored as parquet tblproperties('parquet.compress'='GZIP');
