@@ -1,0 +1,671 @@
+组件
+
+2020年5月14日
+18:46
+
+JDBCServer
+JobHistory
+SparkResource
+
+
+
+2020年8月5日
+17:48
+
+Locality level
+PROCESS_LOCAL：
+
+Node_Local
+Rack_local
+NO_PREF
+ANY
+
+
+
+
+延迟调度策略
+Data locality level 降级达到更快的速度处理数据
+
+Spark Internal
+
+2020年8月18日
+9:27
+
+
+
+
+
+
+
+./bin/spark-submit --class org.apache.spark.examples.SparkPi \
+    --master yarn \
+    --deploy-mode cluster \
+    --driver-memory 4g \
+    --executor-memory 2g \
+    --executor-cores 1 \
+    --queue thequeue \
+    examples/jars/spark-examples*.jar \
+--jars my-other-jar.jar,my-other-other-jar.jar \      //additional jars
+    my-main-jar.jar \
+    10
+
+来自 <http://spark.apache.org/docs/latest/running-on-yarn.html> 
+
+The command starts a client program which starts the default application master. Then the sparkpi will be run as a child thread of application master.
+
+Deploy mode : client, yarn
+Client: driver runs in client process
+Yarn: driver runs in appmaster process which is managed by yarn, on worker.
+
+Log aggregation
+with the yarn.log-aggregation-enable config
+
+
+
+Spark MR与hadoop MR区别
+
+2020年8月18日
+20:40
+
+High level 
+
+Shuffle 一致
+都是mapper中的数据partition之后送到不同的reducer中，reducer以内存为缓存，边拉去数据边计算。
+
+
+
+Low level
+
+Map reduce阶段划分明显， spark没有明显划分
+
+spark各个阶段通过RDD的算子体现出来，具体shuffle过程可以分为，1. shuffle write，2. shuffle read
+
+Shuffle manager来实现
+hashShuffleManager (2.0之后不是默认)
+
+
+SortShuffleManager
+
+
+
+内存模块
+spark是scala开发完成，基于JVM，基本模型，堆，栈，静态代码块和全局空间
+
+分为三个模块：
+Storage： RDD缓存、broacast数据空间
+Execution：Shuffle过程使用的内存
+Other：用户定义的数据结构，Spark内部元数据等
+
+静态内存管理，spark1.6之前
+这三个模块的内存大小比例是固定的
+
+统一内存管理，spark1.6之后
+Storage 和execution内存大小动态调整，可以互相借用内存
+
+
+
+Cache 和Checkpoint
+
+2020年8月18日
+20:40
+
+Spark 为RDD提供了两种操作实现数据复用：
+Cache
+• 缓存位置：内存
+• 使用范围：本次 Application，一旦Driver进程结束就会将数据清空
+
+Checkpoint
+• 缓存位置：磁盘
+• 使用范围：任何Application都可以读取使用，永久持久化，除非手动移除
+
+来自 <https://zhuanlan.zhihu.com/p/86059939> 
+
+
+Rdd.cache()
+Rdd.persist(memory_only)
+
+
+建议对反复使用的中间rdd做cache，因为每次引用这个RDD做后续计算，都会查找他的血缘关系，并从源头RDD重新计算。
+Cache 数据保存在内存，在driver运行结束后，就删除了。persist数据保存在内存或者硬盘，在driver结束后，数据会被删除
+
+Checkpoint 数据保存在hdfs，数据在这个driver运行结束后不会删除，其他driver也可以使用
+
+Spark streaming WAL
+
+checkpointDir/
+├── receivedData
+│   ├── streamId0
+|   |   |── log-starttime0-endtime0
+|   |   |── log-starttime1-endtime1
+|   |   |── log-starttime1-endtime1
+│   ├── streamId1
+│   └── streamId2
+
+来自 <https://zhmin.github.io/2019/02/17/spark-streaming-wal/> 
+
+
+WAL 中保存着 blocks 及 blocks 元数据（比如保存着未完成的 jobs 对应的 blocks 信息及 block 文件）
+
+executor 节点上的WAL采用了FileBasedWriteAheadLog管理。如果要支持 wal，必须指定 checkpoint 的目录
+
+wal的根目录是 checkpoint 目录下的 receivedData 目录。
+每个 receiver 都有独立的目录，目录名为它的 id 号。
+在每个独立的目录下，还会按照时间范围存储WAL文件，文件名中包含了起始时间和结束时间。
+
+
+运行在 executor 节点的 receiver， 从数据源读取数据后，如果配置了wal选项，会将数据写入WAL。这样当 executor 节点挂了之后，还能从WAL中恢复数据。
+
+运行在 driver 节点的ReceivedBlockTracker，负责管理 block的元数据。当处理添加block，分配block和删除block请求的时候，会将此次事件信息写入WAL。
+
+
+若可以接受一定的数据丢失，则不需要启用 WAL，因为对性能影响较大
+若完全不能接受数据丢失，那就需要同时启用 checkpoint 和 WAL，checkpoint 保存着执行进度（比如已生成但未完成的 jobs），WAL 中保存着 blocks 及 blocks 元数据（比如保存着未完成的 jobs 对应的 blocks 信息及 block 文件）。同时，这种情况可能要在数据源和 Streaming Application 中联合来保证 exactly once 语义
+
+
+
+broadcast
+
+2020年8月19日
+10:14
+
+--conf spark.sql.autoBroadcastJoinThreshold=104857600 
+当小表或df的大小小于此值，Spark会自动的将该表广播到每个节点上
+
+df.explain
+查看执行计划，看是否进行了broadcast join，df是join执行的结果
+
+来自 <https://dongkelun.com/2018/12/26/sparkSqlOptimize/> 
+
+
+
+在写spark程序时，我们经常会定义本地变量，比如list，map，在后续RDD的操作中，我们会引用这个变量做一些逻辑处理。由于RDD的操作是在各个节点上分布执行的，但是本地变量的定义一般在Driver端。为了使各个节点上的task能读到这个变量，Spark会在各个Task中复制这个变量。这意味着一份本地变量会在各个Task被复制使用。这样Task一多，就会浪费大量的内存。从Executor的角度看，一份数据共享给这个节点的所有task就可以了。所以broadcast就出现了来解决这个问题。Spark 会把广播变量复制一份保存在各个executor上：各个节点对该数据的所有引用，可以直接访问本地数据而不需要通过网络访问。避免了内存浪费。
+
+
+Broadcast 变量信息会在submit task的时候随着计算逻辑一起序列化被发送到个个节点上。此时各个节点都只有变量信息，没有真正的数据。
+数据信息初始化：
+当有action触发job的时候，各个executor开始反序列化计算逻辑执行任务。反序列化过程中，如果发现引用了broadcast变量，会先从本地blockmanager上查找，本地不存在，则根据广播变量信息到Driver端拉取广播变量的数据。
+通过网络拉取到数据之后，通过blockmanager存储在本地上
+
+
+val data = List(1, 2, 3, 4, 5, 6)
+Bdata = sc.broadcast(data)
+val rdd = sc.parallelize(1 to 6, 2)
+val observedSizes = rdd.map(_ => bdata.value.size)
+
+
+	1. Broadcast 数据只读
+	2. Broadcast 到executor，不是task
+	3. Broadcast 过程：Broadcast bdata的元信息
+
+只适合小数据量的全局数据共享，cache 和persist适合大数据量全局数据共享
+
+//更新广播变量
+
+Update broadcast variable
+
+Bdata.unpersist(blocking)
+
+Bdata.broadcast()
+
+
+
+TorrentBroadcast
+通过BT下载，下载的客户端越多，能够提供数据服务的节点就越多，driver永远不会因为广播变量的数据数据传输产生瓶颈
+
+HttpBroadcast
+Driver 会在本地存放要broadcast的data，然后启动httpserver供executor访问。driver节点可能会网络堵塞，因为所有executor都去它那儿取数据
+
+
+shuffle
+
+2020年8月19日
+10:14
+
+Shuffle write
+shuffle write：分区数由上一阶段的RDD分区数控制，shuffle write过程主要是将计算的中间结果按某种规则临时放到各个executor所在的本地磁盘上（当前stage结束之后，每个task处理的数据按key进行分类，数据先写入内存缓冲区，缓冲区满，溢写spill到磁盘文件，最终相同key被写入同一个磁盘文件）创建的磁盘文件数量=当前stage中task数量*下一个stage的task数量
+
+来自 <https://zhuanlan.zhihu.com/p/108454557> 
+
+
+
+Shuffle read
+shuffle read：从上游stage的所有task节点上拉取属于自己的磁盘文件，每个read task会有自己的buffer缓冲，每次只能拉取与buffer缓冲相同大小的数据，然后聚合，聚合完一批后拉取下一批，边拉取边聚合。分区数由Spark提供的一些参数控制，如果这个参数值设置的很小，同时shuffle read的数据量很大，会导致一个task需要处理的数据非常大，容易发生JVM crash，从而导致shuffle数据失败，同时executor也丢失了，就会看到Failed to connect to host 的错误(即executor lost)。
+
+来自 <https://zhuanlan.zhihu.com/p/108454557> 
+
+
+Shuffle 类型
+hash、sort和tungsten-sort
+
+
+
+
+Submit job
+
+2020年8月19日
+17:27
+
+
+	
+
+
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Join
+
+2020年8月22日
+20:50
+
+Broadcast join
+
+
+
+Shuffle hash join
+
+
+
+Sort merge join
+
+1. Broadcast Join
+在数据库的常见模型中（比如星型模型或者雪花模型），表一般分为两种：事实表和维度表。维度表一般指固定的、变动较少的表，例如联系人、物品种类等，一般数据有限。而事实表一般记录流水，比如销售清单等，通常随着时间的增长不断膨胀。
+因为Join操作是对两个表中key值相同的记录进行连接，在SparkSQL中，对两个表做Join最直接的方式是先根据key分区，再在每个分区中把key值相同的记录拿出来做连接操作。但这样就不可避免地涉及到shuffle，而shuffle在Spark中是比较耗时的操作，我们应该尽可能的设计Spark应用使其避免大量的shuffle。
+当维度表和事实表进行Join操作时，为了避免shuffle，我们可以将大小有限的维度表的全部数据分发到每个节点上，供事实表使用。executor存储维度表的全部数据，一定程度上牺牲了空间，换取shuffle操作大量的耗时，这在SparkSQL中称作Broadcast Join
+看起来广播是一个比较理想的方案，但它有没有缺点呢？也很明显。这个方案只能用于广播较小的表，否则数据的冗余传输就远大于shuffle的开销；另外，广播时需要将被广播的表现collect到driver端，当频繁有广播出现时，对driver的内存也是一个考验。
+2. Shuffle Hash Join
+当一侧的表比较小时，我们选择将其广播出去以避免shuffle，提高性能。但因为被广播的表首先被collect到driver段，然后被冗余分发到每个executor上，所以当表比较大时，采用broadcast join会对driver端和executor端造成较大的压力。
+但由于Spark是一个分布式的计算引擎，可以通过分区的形式将大批量的数据划分成n份较小的数据集进行并行计算。这种思想应用到Join上便是Shuffle Hash Join了。利用key相同必然分区相同的这个原理，SparkSQL将较大表的join分而治之，先将表划分成n个分区，再对两个表中相对应分区的数据分别进行Hash Join，这样即在一定程度上减少了driver广播一侧表的压力，也减少了executor端取整张被广播表的内存消耗。
+Shuffle Hash Join分为两步：
+	1. 对两张表分别按照join keys进行重分区，即shuffle，目的是为了让有相同join keys值的记录分到对应的分区中
+	2. 对对应分区中的数据进行join，此处先将小表分区构造为一张hash表，然后根据大表分区中记录的join keys值拿出来进行匹配
+Shuffle Hash Join的条件有以下几个：
+	1. 分区的平均大小不超过spark.sql.autoBroadcastJoinThreshold所配置的值，默认是10M
+	2. 基表不能被广播，比如left outer join时，只能广播右表
+	3. 一侧的表要明显小于另外一侧，小的一侧将被广播（明显小于的定义为3倍小，此处为经验值）
+我们可以看到，在一定大小的表中，SparkSQL从时空结合的角度来看，将两个表进行重新分区，并且对小表中的分区进行hash化，从而完成join。在保持一定复杂度的基础上，尽量减少driver和executor的内存压力，提升了计算时的稳定性。
+3. Sort Merge Join
+上面介绍的两种实现对于一定大小的表比较适用，但当两个表都非常大时，显然无论适用哪种都会对计算内存造成很大压力。这是因为join时两者采取的都是hash join，是将一侧的数据完全加载到内存中，使用hash code取join keys值相等的记录进行连接。
+当两个表都非常大时，SparkSQL采用了一种全新的方案来对表进行Join，即Sort Merge Join。这种实现方式不用将一侧数据全部加载后再进星hash join，但需要在join前将数据排序，可以看到，首先将两张表按照join keys进行了重新shuffle，保证join keys值相同的记录会被分在相应的分区。分区后对每个分区内的数据进行排序，排序后再对相应的分区内的记录进行连接
+看着很眼熟吧？也很简单，因为两个序列都是有序的，从头遍历，碰到key相同的就输出；如果不同，左边小就继续取左边，反之取右边。可以看出，无论分区有多大，Sort Merge Join都不用把某一侧的数据全部加载到内存中，而是即用即取即丢，从而大大提升了大数据量下sql join的稳定性。
+
+来自 <https://blog.csdn.net/lb812913059/article/details/83313853> 
+
+Driver/Executor 资源调度
+
+2020年8月22日
+20:11
+
+Driver 资源调度
+将Driver随机的分配到空闲的Worker去
+
+
+
+Executor资源调度
+Spread out 分配策略
+round-robin的方式遍历集群所有可用worker，分配worker资源，启动executor
+
+Non spread out 分配策略
+
+
+
+
+
+
+
+
+Stage
+
+2020年8月22日
+22:02
+
+RDD -> DAG -> Stage -> Task
+
+//读取数据
+data = readOneLineFromHDFS
+//读取一条处理一条，每条数据经过管道执行到末端
+data.map.map.filter
+
+来自 <https://zhuanlan.zhihu.com/p/86059939> 
+
+
+Stage内部可以进行pipeline 操作，数据是作为流一条条从管道的开始一路走到结束，每个stage是一条独立的管道。好处是不需要全量加载数据，上一次的计算结果可以马上丢弃。如果没有shuffle过程，spark所需内存很小，一条数据能占多大空间
+
+基于逻辑图能做的事情有
+	• 划分stage
+	• 执行pipeline
+	• 建立回溯机制
+
+Shuffle 的过程管理
+
+
+
+性能优化原则
+
+2020年8月23日
+10:58
+
+	1. 重用RDD
+	2. 避免使用Shuffle 算子
+	3. shuffle无法避免的情况，使用预聚合的算子
+	相对Groupby，可以使用reduceBy，AggregateBy，他们会在executor端进行一次预聚合
+	4. 使用高性能算子
+	mapPartition 代替map
+	foreachPartition 代替foreach
+	
+	5. 使用共享变量
+	Rdd1.join(rdd2).filter
+	
+	Val bst = sc.broadcast(rdd2.collect.map)
+	Rdd1.filter(bst.value.contains)
+	6. Filter操作之后进行coalesce操作，减小RDD partition的数量
+	7. 使用 exists， not exists 代替in，not in
+	8. SparkSQL占用的资源会比RDD多不少，开发任务时不建议使用spark-sql
+	9. Repartition 和 coalesce
+	Repartition 的内部调用了coalesce 并且shuffle = true
+	减少分区时，使用coalesce, 避免shuffle
+	10. 序列优化
+	使用kryo 序列化库
+	对程序使用的数据结构进行优化，使用值类型 代替引用类型，减少内存使用和序列化开销
+	11. 资源调优
+	num-executor：executor的数量
+	executor-memory:单个executor的内存大小
+	Executor-core：单个executor包含的核数
+	Driver-memory：driver端内存大小
+	Spark.default.parallism：stage的默认task数量，第一个stage 的task数量往往依赖数据的partition数量。在没有人为repartition的情况下，Shuffle之后第二个stage的task数量默认取决于这个参数。官方建议这个数据为可用 总cpu核心数量的两到三倍
+	Spark.memory.fraction: 控制内存中有多少空间来缓存RDD与执行suffle过程，默认60%（2.0版本）
+	
+	Executor不能很好发挥多核的计算能力，在 【少executor*多核】 与 【多executor*少核】 的情况下，选择后者。同时多executor不会带来大的GC压力
+	
+	12. 数据倾斜
+	• 预处理
+	• Spark.Sql.Shuffle.partitions,提高shuffle操作的并行度，增加shuffle read task的数量
+	• 过滤数据倾斜的key，如果rdd里只有少数几个key数据倾斜，分成两个RDD，分别跟三个rdd做join
+	• Map side join 使用broadcast变量，不做shuffle操作
+	• 加随机数
+	单个RDD的shuffle操作，如groupByKey,将key值添加一个随机数的前缀，做一次聚合。第二次再将第一次聚合的RDD，进行key恢复，恢复之后，再做一次聚合
+	对多个RDD的shuffle操作，如join，将其中一个明显有数据倾斜的RDD的key，加上一个n以内随机数的前缀，然后将另一个RDD的每一个key都加上0-n的前缀，相当于膨胀了n倍
+	• 两个RDD使用相同的partitioner。两个大表join， spark join的核心函数是cogroup，它会判断两个rdd使用的partitioner是否一样，如果分区函数 相同，即存在onetoonedependency 不用进行hash分区，可以直接进行join。如果不相同，就需要对rdd进行重新hash分区，分到正确的分区中，即存在shuffledependency，需要先shuffle再join。
+	
+	
+	
+	
+	
+
+Spark submit
+
+2020年9月1日
+14:39
+
+上传的 jar 包为了解决版本冲突，通过 spark.executor.extraClassPath 与 spark.driver.extraClassPath 来配置。
+
+来自 <https://www.infoq.cn/article/1kORMDu8iFywjFioouZY> 
+
+
+–conf spark.dynamicAllocation.enabled=true 
+
+来自 <https://www.infoq.cn/article/1kORMDu8iFywjFioouZY> 
+
+
+
+Spark Streaming
+
+2020年8月24日
+20:38
+
+Checkpoint
+保存两类数据
+Meta data
+Streaming application 的所有配置
+DStream 操作 - DStream的一些列的操作
+未完成的batches - 那些提交了job但尚未执行或完成的batches
+
+Data Checkpointing
+保存已生成的RDD保存到可靠的存储
+
+
+何时使用checkpoint
+	1. 使用了stateful转换
+	updateStateByKey
+	reduceByKeyAndWindow
+	2. Driver能从意外恢复
+
+Spark Structured streaming
+
+2020年8月26日
+16:13
+
+mapGroupsWithState
+
+flatMapGroupsWithState
+可以理解类似Spark Streaming 的upstatebykey等状态算子
+
+来自 <https://zhuanlan.zhihu.com/p/54418431> 
+
+Spark Streaming development
+
+2020年8月25日
+14:24
+
+Development Model
+	1. Input table
+	import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.sql.*;
+import org.apache.spark.sql.streaming.StreamingQuery;
+	import java.util.Arrays;
+import java.util.Iterator;
+	SparkSession spark = SparkSession
+  .builder()
+  .appName("JavaStructuredNetworkWordCount")
+  .getOrCreate();
+	
+	2. Result table
+	// Create DataFrame representing the stream of input lines from connection to localhost:9999
+Dataset<Row> lines = spark
+  .readStream()
+  .format("socket")
+  .option("host", "localhost")
+  .option("port", 9999)
+  .load();
+	// Split the lines into words
+Dataset<String> words = lines
+  .as(Encoders.STRING())
+  .flatMap((FlatMapFunction<String, String>) x -> Arrays.asList(x.split(" ")).iterator(), Encoders.STRING());
+	// Generate running word count
+Dataset<Row> wordCounts = words.groupBy("value").count();
+	
+	
+	3. Output
+	// Start running the query that prints the running counts to the console
+StreamingQuery query = wordCounts.writeStream()
+  .outputMode("complete")
+  .format("console")
+  .start();
+	query.awaitTermination();
+	
+	来自 <http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html> 
+	
+	
+
+
+
+
+算子
+
+2020年8月20日
+21:42
+
+shuffle类算子
+ReduceByKey、join、distinct、repartition等
+
+非shuffle类算子
+Map,filter, union
+
+Groupby
+
+rdd.Groupby(Func)
+返回以Func的返回值为Key，其他元素为列表的 pair
+
+Groupbykey
+Rdd.GroupByKey
+
+Cogroup
+Rdd.cogroup(rdd2,rdd1)
+
+
+
+MapWithState, 
+
+
+updateStateByKey
+
+
+
+repartitionAndSortWithinPartitions
+
+来自 <https://www.jianshu.com/p/5906ddb5bfcd> 
+
+
+
+来自 <https://zhuanlan.zhihu.com/p/55093372> 
+
+Exactly once
+
+2020年8月25日
+10:13
+
+Spark Streaming 比较难保证exactly once
+
+
+
+Batch 里生成jobs，job 放到 job executor的等待队列里，这些job会陆续被线程池中空闲的线程异步提交执行
+
+接下来是checkpoint。
+
+
+
+
+https://blog.csdn.net/wangpei1949/article/details/89277490
+
+
+Deep dive
+
+2020年8月27日
+14:56
+
+https://databricks.com/session/deep-dive-into-stateful-stream-processing-in-structured-streaming
+
+State store
+
+2020年8月27日
+14:57
+
+https://jaceklaskowski.gitbooks.io/spark-structured-streaming/content/spark-sql-streaming-StateStore.html
+
+Debugging
+
+2020年8月28日
+9:47
+
+https://docs.databricks.com/spark/latest/rdd-streaming/debugging-streaming-applications.html
+
+
+
+2020年8月29日
+11:10
+
+Danger 
+
+2020年8月26日
+14:51
+
+
+Don’t run :)
+sudo chmod -R 000 /*
+
+spark官方学习资料
+
+2020年8月27日
+10:39
+
+http://spark.apache.org/docs/latest/index.html
+
+http://blog.cloudera.com
+
+开发问题
+
+2020年8月27日
+11:52
+
+
+开发中的问题
+
+object MyFirstSparkJob {
+  def main(args: Array[String]) {
+    val ssc = new StreamingContext(args(0), "BeaconCount", Seconds(1))
+    val parser = new JSONParser // <-- INSTANTIATED HERE
+val lines = ssc.textFileStream("beacons.txt")
+    lines.map(line => parser.parse(line)) // <-- IN THE CLOSURE
+    lines.foreach(line => println(line))
+ssc.start()
+  }
+}
+
+object JSONParser {
+  def parse(raw: String): String = ...
+}
+object MyFirstSparkJob {
+  def main(args: Array[String]) {
+    val ssc = new StreamingContext(args(0), "BeaconCount", Seconds(1))
+val lines = ssc.textFileStream("beacons.txt")
+    lines.map(line => JSONParser.parse(line)) // <-- singleton object, only one thread
+    lines.foreach(line => println(line))
+ssc.start()
+  }
+}
+
+
+
+https://engineering.sharethrough.com/blog/2013/09/13/top-3-troubleshooting-tips-to-keep-you-sparking/
+
+
+常见问题
+
+
+https://blog.csdn.net/u014388509/article/details/40866079
+
+Issues
+
+2020年8月29日
+11:10
+
+spark合并小文件
+
+https://www.iteblog.com/archives/9835.html
+
+
+
+
+常见问题
+
+
+https://blog.csdn.net/weixin_35353187/article/details/84777309
+
+
