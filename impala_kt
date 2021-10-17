@@ -1,0 +1,306 @@
+Architecture
+
+2021年3月9日
+14:55
+
+Impala use metastore provided by hive. It can query data stored in hdfs or hbase by using same sql syntax, jdbc driver as hive.
+
+It's a distributed query processing engine.
+
+
+
+Impalad (impala daemon)
+A few of the key functions that an Impala daemon performs are:
+	• Reads and writes to data files.
+	• Accepts queries transmitted from the impala-shell command, Hue, JDBC, or ODBC.
+	• Parallelizes the queries and distributes work across the cluster.
+	• Transmits intermediate query results back to the central coordinator.
+
+The Impala daemons are in constant communication with StateStore, to confirm which daemons are healthy and can accept new work.
+They also receive broadcast messages from the catalogd daemon (introduced in Impala 1.2) whenever any Impala daemon in the cluster creates, alters, or drops any type of object, or when an INSERT or LOAD DATA statement is processed through Impala. This background communication minimizes the need for REFRESH or INVALIDATE METADATA statements that were needed to coordinate metadata across Impala daemons prior to Impala 1.2.
+
+In Impala 2.9 and higher, you can control which hosts act as query coordinators and which act as query executors, to improve scalability for highly concurrent workloads on large clusters. See How to Configure Impala with Dedicated Coordinators for details.
+
+来自 <https://impala.apache.org/docs/build/html/topics/impala_components.html> 
+
+Statestore
+The Impala component known as the StateStore checks on the health of all Impala daemons in a cluster, and continuously relays its findings to each of those daemons. It is physically represented by a daemon process named statestored. You only need such a process on one host in a cluster. If an Impala daemon goes offline due to hardware failure, network error, software issue, or other reason, the StateStore informs all the other Impala daemons so that future queries can avoid making requests to the unreachable Impala daemon
+
+来自 <https://impala.apache.org/docs/build/html/topics/impala_components.html> 
+
+Because the StateStore's purpose is to help when things go wrong and to broadcast metadata to coordinators, it is not always critical to the normal operation of an Impala cluster. If the StateStore is not running or becomes unreachable, the Impala daemons continue running and distributing work among themselves as usual when working with the data known to Impala. The cluster just becomes less robust if other Impala daemons fail, and metadata becomes less consistent as it changes while the StateStore is offline. When the StateStore comes back online, it re-establishes communication with the Impala daemons and resumes its monitoring and broadcasting functions.
+If you issue a DDL statement while the StateStore is down, the queries that access the new object the DDL created will fail.
+Most considerations for load balancing and high availability apply to the impalad daemon. The statestored and catalogd daemons do not have special requirements for high availability, because problems with those daemons do not result in data loss. If those daemons become unavailable due to an outage on a particular host, you can stop the Impala service, delete the Impala StateStore and Impala Catalog Server roles, add the roles on a different host, and restart the Impala service.
+
+来自 <https://impala.apache.org/docs/build/html/topics/impala_components.html> 
+
+
+
+Catalog
+The Impala component known as the Catalog Service relays the metadata changes from Impala SQL statements to all the Impala daemons in a cluster. It is physically represented by a daemon process named catalogd. You only need such a process on one host in a cluster. Because the requests are passed through the StateStore daemon, it makes sense to run the statestored and catalogd services on the same host.
+The catalog service avoids the need to issue REFRESH and INVALIDATE METADATA statements when the metadata changes are performed by statements issued through Impala. When you create a table, load data, and so on through Hive, you do need to issue REFRESH or INVALIDATE METADATA on an Impala daemon before executing a query there.
+
+来自 <https://impala.apache.org/docs/build/html/topics/impala_components.html> 
+
+
+
+Perf
+
+2021年3月9日
+15:08
+
+	1. Choose appropriate file format for the data 
+
+	Choose a partitioning strategy that puts at least 256 MB of data in each partition, to take advantage of HDFS bulk I/O and Impala distributed queries.
+
+	2. Avoid data ingestion process that produce too many small files 
+	Convert small files of data to parquet format and split into multiple data files using a single Insert … select from 
+	Whichi creates Parquet files with a 256 MB block size
+	Block size is recommended 256 MB
+	
+	3. Choose partition granularity based on actual data volume 
+	 Choose a partitioning strategy that puts at least 256 MB of data in each partition, to take advantage of HDFS bulk I/O and Impala distributed queries.
+	4.  Choose an appropriate Parquet block size
+	By default, the Impala INSERT ... SELECT statement creates Parquet files with a 256 MB block size.
+	you want to find a sweet spot between "many tiny files" and "single giant file" that balances bulk I/O and parallel processing. You can set the PARQUET_FILE_SIZE query option before doing an INSERT ... SELECT statement to reduce the size of each generated Parquet file. (Specify the file size as an absolute number of bytes, or in Impala 2.0 and later, in units ending with m for megabytes or g for gigabytes.)
+	5. EXPLAIN 
+	6. COMPUTE STATS
+
+来自 <https://docs.cloudera.com/documentation/enterprise/6/6.2/topics/impala_perf_cookbook.html> 
+
+
+
+Cloudera Impala performance consideration
+
+https://docs.cloudera.com/runtime/7.2.9/impala-reference/topics/impala-performance.html
+
+Recommended resource
+
+2021年3月9日
+17:39
+
+Component	Native Memory	JVM Heap	CPU	Disk
+Impala Daemon	Set this value using the Impala Daemon Memory Limit configuration property.	Use the JAVA_TOOL_OPTIONS environment variable to set the maximum heap size for the Coordinator Impala Daemons.	• Minimum: 4	• Minimum: 1 disk
+	• Minimum: 32 GB	• Minimum: 4 GB	• Recommended: 16 or more	• Recommended: 8 or more
+	• Recommended: 128 GB	• Recommended: 8 GB	CPU instruction set: AVX2
+Catalog Server	Set the maximum heap size for the Catalog Server:		• Minimum: 4	• Minimum and Recommended: 1 dis
+	• Minimum: 4 GB		• Recommended: 16 or more
+	• Recommended: 8 GB		CPU instruction set: AVX2
+	In Cloudera Manager, use the Java Heap Size of Catalog Server in Bytes configuration property (Cloudera Manager 5.7 and higher), or Impala Catalog Server Environment Advanced Configuration Snippet (Safety Valve) (Cloudera Manager 5.6 and lower).
+	If not using Cloudera Manager, use the JAVA_TOOL_OPTIONS environment variable. For example, to set it to 8 GB: JAVA_TOOL_OPTIONS= "-Xmx8g"
+
+来自 <https://docs.cloudera.com/documentation/enterprise/release-notes/topics/hardware_requirements_guide.html#concept_ndy_x3r_hbb> 
+
+Planning
+
+2021年3月10日
+17:03
+
+Sizing Cluster
+
+2021年3月10日
+17:03
+
+	1. SLA
+	2. Workload
+	3. Projected life span
+
+SLA
+Query response time
+Speed 
+Concurrency 
+Query Throughput
+How many queries should this cluster process per second?
+"Computing power "
+Change in the future
+
+Workload
+Memory
+	1. Huge group by expression involved in query
+          mem per node = rowsize*#distinct group + rowsize*#distinct group/#node
+
+	2. Connection 
+	KDC access, N*N
+	> 200 Nodes, recommend more KDC server
+	
+	3. Workload, computing power
+	ü Scan node, 8-10m rows per core
+	ü Join node(single join predicate) 10m rows per sec per core
+	ü Agg node (single agg), 5m rows per sec per core
+	ü Sort node, 17MB per sec per core
+	ü Parquet write, 1~5MB per sec per core 
+            For a query workload, based on #join/agg, estimate #rows passing through  the operator node
+           https://www.slideshare.net/cloudera/the-impala-cookbook-42530186
+	
+	4. Summary
+Total cluster mem = 2nd largest table in the join after compression, filtering, and projection
+Mem per node = rowsize*#distinct group + rowsize*#distinct group/#node
+
+
+
+Memory used
+
+#Nodes = QPM * D / 1.6*60 GB 
+               = QPS *D/ 1.6 (GB/s)
+
+Data processed per node: 1.6 GB/s
+queries per minute (QPM)
+average data size scanned per query (D). With the proper partitioning strategy, D is usually a fraction of the total data size
+
+
+Here is an example. Suppose, on average, a query scans 50 GB of data and the average response time is required to be 15 seconds or less when there are 100 concurrent queries. The QPM is 100/15*60 = 400. The QPS is 100/15 = 6.7 We can estimate the number of node using our equation above.
+
+#Nodes = 400* 50/100 GB = 200 
+               = 6.7*50/1.6 = 209 
+
+来自 <http://bdlabs.edureka.co/static/help/topics/impala_cluster_sizing.html> 
+
+
+
+	2. From Memory perspective 
+	
+select a.*, b.col_1, b.col_2, … b.col_n
+from a, b
+where a.key = b.key
+and b.col_1 in (1,2,4...)
+and b.col_4 in (....);
+
+In this case, assume that table B is 100 TB in Parquet format with 200 columns. The predicate on B (b.col_1 in ...and b.col_4 in ...) will select only 10% of the rows from B and for projection, we are only projecting 5 columns out of 200 columns. Usually, Snappy compression gives us 3 times compression, so we estimate a 3x compression factor
+
+
+Cluster Total Memory Requirement  = Size of the smaller table *
+  selectivity factor from the predicate *
+  projection factor * compression ratio
+  = 100TB * 10% * 5/200 * 3
+  = 0.75TB
+  = 750GB
+
+#Nodes = memory required/ (memory per node * allocation percentage )
+= 750 GB/ (256 GB *0.8) = 4
+来自 <http://bdlabs.edureka.co/static/help/topics/impala_cluster_sizing.html> 
+
+
+How much memory a query requires
+
+ A very rough rule of thumb for minimum memory in releases CDH5.9-CDH5.12 is the following.
+ 
+	1. For each hash join, the minimum of 150MB or the amount of data on the right side of the node (e.g. if you have a few thousand rows on the right side, maybe a MB or two).
+	2. For each merge aggregation, the minimum of 300MB or the size of grouped data in-memory (e.g. if you only have a few thousand groups, maybe a MB or two).
+	3. For each sort, about 50-60MB
+	4. For each analytic, about 20MB
+If you add all those up and add another 25% you'll get a ballpark number for how much memory the query will require to execute.
+
+来自 <https://community.cloudera.com/t5/Support-Questions/impala-memory-limit-exceed/td-p/49356/page/2> 
+
+
+	• Memory is used by
+		○ Hash join - RHS table after compression, filtering and projection
+		○ Group by - proportional to the #groups
+		○ Parquet write buffer - 256 MB per partition
+		○ IO buffer (shared across queries)
+	• Memory held and reused by later queries
+	     release memory from time to time after 1.4
+	
+
+
+
+
+More CPU instances, better performance?
+
+Single vs. Dual CPU instances The first thing that surprised us once we ran the tests was that configurations FMCI 6.32 and FMCI 8.80, that only had a single CPU, registered a higher score than the corresponding dual CPU configurations (FMCI 12.32 and FMCI 16.80). We weren’t expecting the overall score to grow dramatically once we added the second CPU, but we did not expect it to drop either. After closely considering possible causes and eliminating all suspicion of erroneus testing, we concluded that the loss in performance is due to the fact that Impala is very dependent on memory access speeds and adding the second CPU slows these down. This is not specific to Impala – any database that doesn’t use procesor affinity to store data in memory will be subject to this issue as a consequence of the NUMA (Non-Uniform Memory Access) architecture limitations
+
+Configuration
+
+2021年3月10日
+21:10
+
+	1. Check what is consuming memory on each host
+	http://hostname:25000/memz?detailed=true
+
+	2. See what other queries are running on the coordinator 
+	http://hostname:25000/queries
+	
+	3. Check mem_limit 
+	http://hostname:25000/varz
+	
+	4. Configure mem_limit parameter
+	Impala Daemon Memory Limit  [mem_limit ] ----> 8GB
+	
+	来自 <https://community.cloudera.com/t5/Support-Questions/impala-memory-limit-exceed/td-p/49356> 
+	
+	
+	
+
+Commands
+
+2021年3月10日
+22:11
+
+Impala-shell
+	1. PROFILE  (prior to impala 1.4)
+
+Issue the PROFILE command to get a detailed breakdown of the memory usage on each node during the query
+
+来自 <http://bdlabs.edureka.co/static/help/topics/impala_scalability.html> 
+	2. SUMMARY
+	see performance-related information about how it actually ran
+	
+	来自 <http://bdlabs.edureka.co/static/help/topics/impala_schema_design.html> 
+
+Resource Management
+
+2021年3月13日
+14:40
+
+How Resource Limits Are Enforced
+
+
+	• Cloudera Manager Static Partitioning
+If Static Partitioning is used, it creates a cgroup in which Impala runs. This cgroup limits CPU, network, and IO according to the static partitioning policy
+
+
+	• Impala's process memory limit (the MEM_LIMIT query option setting)
+
+
+来自 <https://docs.cloudera.com/documentation/enterprise/5-9-x/topics/impala_resource_management.html> 
+
+
+
+impala的资源管理并不依赖yarn，对于MPP架构的系统，它的查询响应时间由最慢的节点运行时间决定，而为了提升查询性能，又需要尽可能多的节点参与计算，而YARN上的任务每次都是启动一个新的进程，启动进程的时间对于批处理任务是可以接受的，毕竟这种任务运行时间比较久，而对于追求低延迟的Ad-hoc查询而言代价有点大了，很可能出现进程启动+初始化时间大于真正运行的时间。
+
+impala有一套自己的资源管理模块Admission Control，这是个去中心化的资源管理系统，它嵌入到了集群中的每个impala daemon中发挥作用。尽管Admission Control对整个impala集群的资源使用作出限制，每个impala daemon还是会自己决定它上面的查询是立即执行还是进入等待队列。
+
+
+Primitives
+
+2021年3月20日
+16:33
+
+Impala不支持update或者delete
+
+来自 <https://zhuanlan.zhihu.com/p/87022094> 
+
+
+查询流程
+
+2021年3月22日
+15:28
+
+impala理论篇之六：查询的执行流程_Allenzyg的博客-CSDN博客
+https://blog.csdn.net/Allenzyg/article/details/106523942
+
+
+
+https://blog.csdn.net/yu616568/article/details/74996897
+
+
+
+2021年4月1日
+11:03
+
+impala的资源管理并不依赖yarn，对于MPP架构的系统，它的查询响应时间由最慢的节点运行时间决定，而为了提升查询性能，又需要尽可能多的节点参与计算，而YARN上的任务每次都是启动一个新的进程，启动进程的时间对于批处理任务是可以接受的，毕竟这种任务运行时间比较久，而对于追求低延迟的Ad-hoc查询而言代价有点大了，很可能出现进程启动+初始化时间大于真正运行的时间。
+
+
+
+
+
